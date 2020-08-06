@@ -378,7 +378,8 @@ int sim_t::main(const std::vector<std::string>& args)
 		//if (spell.flags(spell_attribute::SX_HIDDEN))
 		//	continue;
 
-		if (spell.class_mask() && spell.is_class(player_e::SHAMAN))
+		
+		if (spell.class_family() == 11 || (spell.class_mask() && spell.is_class(player_e::SHAMAN)))
 		{
 			if (dbc->is_specialization_ability(SHAMAN_ELEMENTAL, spell.id()))
 			{
