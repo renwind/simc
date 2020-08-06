@@ -28,6 +28,7 @@
 #endif
 #include "nga/nga_data.hpp"
 #include "dbc/sc_spell_info.hpp"
+#include "dbc/covenant_data.hpp"
 
 namespace { // anonymous namespace ==========================================
 
@@ -201,112 +202,129 @@ std::string get_cache_directory()
 #pragma warning( pop )
 #endif
 
-  return s;
+return s;
 }
 
 // RAII-wrapper for http cache load / save
 struct cache_initializer_t {
-  cache_initializer_t( const std::string& fn ) :
-    _file_name( fn )
-  { http::cache_load( _file_name ); }
-  ~cache_initializer_t()
-  { http::cache_save( _file_name ); }
+	cache_initializer_t(const std::string& fn) :
+		_file_name(fn)
+	{
+		http::cache_load(_file_name);
+	}
+	~cache_initializer_t()
+	{
+		http::cache_save(_file_name);
+	}
 private:
-  std::string _file_name;
+	std::string _file_name;
 };
 
 #if !defined( SC_NO_NETWORKING )
 struct apitoken_initializer_t
 {
-  apitoken_initializer_t()
-  { bcp_api::token_load(); }
+	apitoken_initializer_t()
+	{
+		bcp_api::token_load();
+	}
 
-  ~apitoken_initializer_t()
-  { bcp_api::token_save(); }
+	~apitoken_initializer_t()
+	{
+		bcp_api::token_save();
+	}
 };
 #endif
 
 struct special_effect_initializer_t
 {
-  special_effect_initializer_t()
-  {
-    unique_gear::register_special_effects();
-    unique_gear::sort_special_effects();
-  }
+	special_effect_initializer_t()
+	{
+		unique_gear::register_special_effects();
+		unique_gear::sort_special_effects();
+	}
 
-  ~special_effect_initializer_t()
-  { unique_gear::unregister_special_effects(); }
+	~special_effect_initializer_t()
+	{
+		unique_gear::unregister_special_effects();
+	}
 };
 
 void print_version_info(const dbc_t& dbc)
 {
-  std::cout << util::version_info_str( &dbc ) << std::endl << std::endl;
-  std::flush(std::cout);
+	std::cout << util::version_info_str(&dbc) << std::endl << std::endl;
+	std::flush(std::cout);
 }
 
 } // anonymous namespace ====================================================
 
 // sim_t::main ==============================================================
 
-int sim_t::main( const std::vector<std::string>& args )
+int sim_t::main(const std::vector<std::string>& args)
 {
-  try
-  {
-    cache_initializer_t cache_init( get_cache_directory() + "/simc_cache.dat" );
-#if !defined( SC_NO_NETWORKING )
-    apitoken_initializer_t apitoken_init;
-#endif
-    dbc::init();
-    module_t::init();
-    unique_gear::register_hotfixes();
-
-    special_effect_initializer_t special_effect_init;
-
-    print_version_info(*dbc);
-
-
-	// renwind modified
-	std::ofstream element_nga_talbe("f:/element_nga_table.txt");
-	element_nga_talbe << to_nga_table(*dbc);
-	element_nga_talbe.close();
-
-	std::ofstream spell_out("f:/all_spell.txt");
-	std::ofstream element_out("f:/element_spell.txt");
-	std::ofstream enhance_out("f:/enhance_spell.txt");
-	std::ofstream restore_out("f:/restore_spell.txt");
-	std::ofstream common_out("f:/common_spell.txt");
-	for (const spell_data_t &spell : spell_data_t::data())
+	try
 	{
-		spell_out << spell_info::to_str(*dbc, &spell, MAX_LEVEL);
-		//if (spell.flags(spell_attribute::SX_HIDDEN))
-		//	continue;
+		cache_initializer_t cache_init(get_cache_directory() + "/simc_cache.dat");
+#if !defined( SC_NO_NETWORKING )
+		apitoken_initializer_t apitoken_init;
+#endif
+		dbc::init();
+		module_t::init();
+		unique_gear::register_hotfixes();
 
-		
-		if (spell.class_family() == 11 || (spell.class_mask() && spell.is_class(player_e::SHAMAN)))
+		special_effect_initializer_t special_effect_init;
+
+		print_version_info(*dbc);
+
+
+		// renwind modified
+		std::ofstream element_nga_talbe("f:/element_nga_table.txt");
+		element_nga_talbe << to_nga_table(*dbc);
+		element_nga_talbe.close();
+
+		std::ofstream spell_out("f:/all_spell.txt");
+		std::ofstream element_out("f:/element_spell.txt");
+		std::ofstream enhance_out("f:/enhance_spell.txt");
+		std::ofstream restore_out("f:/restore_spell.txt");
+		std::ofstream conduit_out("f:/conduit_spell.txt");
+		std::ofstream common_out("f:/common_spell.txt");
+		for (const spell_data_t &spell : spell_data_t::data())
 		{
-			if (dbc->is_specialization_ability(SHAMAN_ELEMENTAL, spell.id()))
+			spell_out << spell_info::to_str(*dbc, &spell, MAX_LEVEL);
+			//if (spell.flags(spell_attribute::SX_HIDDEN))
+			//	continue;
+
+			const auto& conduit = conduit_entry_t::find_by_spellid(spell.id(), dbc->ptr);
+
+			if (spell.class_family() == 11 || (spell.class_mask() && spell.is_class(player_e::SHAMAN)))
 			{
-				element_out << spell_info::to_str(*dbc, &spell, MAX_LEVEL);
-			}
-			else if (dbc->is_specialization_ability(SHAMAN_ENHANCEMENT, spell.id()))
-			{
-				enhance_out << spell_info::to_str(*dbc, &spell, MAX_LEVEL);
-			}
-			else if (dbc->is_specialization_ability(SHAMAN_RESTORATION, spell.id()))
-			{
-				restore_out << spell_info::to_str(*dbc, &spell, MAX_LEVEL);
-			}
-			else
-			{
-				common_out << spell_info::to_str(*dbc, &spell, MAX_LEVEL);
+				if (dbc->is_specialization_ability(SHAMAN_ELEMENTAL, spell.id()))
+				{
+					element_out << spell_info::to_str(*dbc, &spell, MAX_LEVEL);
+				}
+				else if (dbc->is_specialization_ability(SHAMAN_ENHANCEMENT, spell.id()))
+				{
+					enhance_out << spell_info::to_str(*dbc, &spell, MAX_LEVEL);
+				}
+				else if (dbc->is_specialization_ability(SHAMAN_RESTORATION, spell.id()))
+				{
+					restore_out << spell_info::to_str(*dbc, &spell, MAX_LEVEL);
+				}
+				else if (conduit.spell_id && conduit.spell_id == spell.id())
+				{
+					conduit_out << spell_info::to_str(*dbc, &spell, MAX_LEVEL);
+				}
+				else
+				{
+					common_out << spell_info::to_str(*dbc, &spell, MAX_LEVEL);
+				}
 			}
 		}
-	}
-	spell_out.close();
-	element_out.close();
-	enhance_out.close();
-	restore_out.close();
-	common_out.close();
+		spell_out.close();
+		element_out.close();
+		enhance_out.close();
+		restore_out.close();
+		common_out.close();
+		conduit_out.close();
 
 
 
