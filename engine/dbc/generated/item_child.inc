@@ -1,25 +1,25 @@
-// Item child equipment, wow build 9.0.1.35432
+﻿// Item child equipment, wow build 9.0.1.35432
 static const std::array<item_child_equipment_t, 21> __item_child_equipment_data { {
-  {  2, 127417,   1728 }, // parent=0, child=Teebu's Blazing Longsword
-  {  3, 127829, 127830 }, // parent=Twinblades of the Deceiver, child=Twinblades of the Deceiver
-  { 23, 128292, 128293 }, // parent=Blades of the Fallen Prince, child=Blades of the Fallen Prince
-  { 32, 128476, 128479 }, // parent=Fangs of the Devourer, child=Fangs of the Devourer
-  { 35, 128821, 128822 }, // parent=Claws of Ursoc, child=Claws of Ursoc
-  { 37, 128832, 128831 }, // parent=Aldrachi Warblades, child=Aldrachi Warblades
-  { 38, 128860, 128859 }, // parent=Fangs of Ashamane, child=Fangs of Ashamane
-  { 40, 128870, 128869 }, // parent=The Kingslayers, child=The Kingslayers
-  { 41, 128872, 134552 }, // parent=The Dreadblades, child=The Dreadblades
-  { 42, 128819, 128873 }, // parent=Doomhammer, child=Fury of the Stonemother
-  { 43, 128908, 134553 }, // parent=Warswords of the Valarjar, child=Warswords of the Valarjar
-  { 44, 128911, 128934 }, // parent=Sharas'dal, Scepter of Tides, child=Shield of the Sea Queen
-  { 45, 128935, 128936 }, // parent=The Fist of Ra-den, child=The Highkeeper's Ward
-  { 46, 128940, 133948 }, // parent=Fists of the Heavens, child=Fists of the Heavens
-  { 51, 129738, 127830 }, // parent=Verus, child=Twinblades of the Deceiver
-  { 54, 128827, 133958 }, // parent=Xal'atath, Blade of the Black Empire, child=Secrets of the Void
-  { 55, 128820, 133959 }, // parent=Felo'melorn, child=Heart of the Phoenix
-  { 56, 128289, 128288 }, // parent=Scale of the Earth-Warder, child=Scaleshard
-  { 57, 128866, 128867 }, // parent=Truthguard, child=Oathseeker
-  { 61, 128943, 137246 }, // parent=Skull of the Man'ari, child=Spine of Thal'kiel
-  { 63, 137661, 128867 }, // parent=Truthguard, child=Oathseeker
+  {  2, 127417,   1728 }, // parent=0, child=提布的炽炎长剑
+  {  3, 127829, 127830 }, // parent=欺诈者的双刃, child=欺诈者的双刃
+  { 23, 128292, 128293 }, // parent=堕落王子之剑, child=堕落王子之剑
+  { 32, 128476, 128479 }, // parent=吞噬者之牙, child=吞噬者之牙
+  { 35, 128821, 128822 }, // parent=乌索克之爪, child=乌索克之爪
+  { 37, 128832, 128831 }, // parent=奥达奇战刃, child=奥达奇战刃
+  { 38, 128860, 128859 }, // parent=阿莎曼之牙, child=阿莎曼之牙
+  { 40, 128870, 128869 }, // parent=弑君者, child=弑君者
+  { 41, 128872, 134552 }, // parent=恐惧之刃, child=恐惧之刃
+  { 42, 128819, 128873 }, // parent=毁灭之锤, child=石母之怒
+  { 43, 128908, 134553 }, // parent=瓦拉加尔战剑, child=瓦拉加尔战剑
+  { 44, 128911, 128934 }, // parent=莎拉达尔，潮汐权杖, child=海底女王之盾
+  { 45, 128935, 128936 }, // parent=莱登之拳, child=至高守护者之盾
+  { 46, 128940, 133948 }, // parent=诸天之拳, child=诸天之拳
+  { 51, 129738, 127830 }, // parent=维鲁斯, child=欺诈者的双刃
+  { 54, 128827, 133958 }, // parent=萨拉塔斯，黑暗帝国之刃, child=虚空的秘密
+  { 55, 128820, 133959 }, // parent=烈焰之击, child=凤凰之心
+  { 56, 128289, 128288 }, // parent=大地守护者之鳞, child=碎鳞
+  { 57, 128866, 128867 }, // parent=真理守护者, child=誓言践行者
+  { 61, 128943, 137246 }, // parent=堕落者之颅, child=萨奇尔的脊椎
+  { 63, 137661, 128867 }, // parent=真理守护者, child=誓言践行者
 } };
 
