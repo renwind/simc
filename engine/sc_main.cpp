@@ -26,6 +26,8 @@
 #ifdef SC_SIGACTION
 #include <csignal>
 #endif
+#include "nga/nga_data.hpp"
+#include "dbc/sc_spell_info.hpp"
 
 namespace { // anonymous namespace ==========================================
 
@@ -261,6 +263,52 @@ int sim_t::main( const std::vector<std::string>& args )
     special_effect_initializer_t special_effect_init;
 
     print_version_info(*dbc);
+
+
+	// renwind modified
+	std::ofstream element_nga_talbe("f:/element_nga_table.txt");
+	element_nga_talbe << to_nga_table(*dbc);
+	element_nga_talbe.close();
+
+	std::ofstream spell_out("f:/all_spell.txt");
+	std::ofstream element_out("f:/element_spell.txt");
+	std::ofstream enhance_out("f:/enhance_spell.txt");
+	std::ofstream restore_out("f:/restore_spell.txt");
+	std::ofstream common_out("f:/common_spell.txt");
+	for (const spell_data_t &spell : spell_data_t::data())
+	{
+		spell_out << spell_info::to_str(*dbc, &spell, MAX_LEVEL);
+		//if (spell.flags(spell_attribute::SX_HIDDEN))
+		//	continue;
+
+		if (spell.class_mask() && spell.is_class(player_e::SHAMAN))
+		{
+			if (dbc->is_specialization_ability(SHAMAN_ELEMENTAL, spell.id()))
+			{
+				element_out << spell_info::to_str(*dbc, &spell, MAX_LEVEL);
+			}
+			else if (dbc->is_specialization_ability(SHAMAN_ENHANCEMENT, spell.id()))
+			{
+				enhance_out << spell_info::to_str(*dbc, &spell, MAX_LEVEL);
+			}
+			else if (dbc->is_specialization_ability(SHAMAN_RESTORATION, spell.id()))
+			{
+				restore_out << spell_info::to_str(*dbc, &spell, MAX_LEVEL);
+			}
+			else
+			{
+				common_out << spell_info::to_str(*dbc, &spell, MAX_LEVEL);
+			}
+		}
+	}
+	spell_out.close();
+	element_out.close();
+	enhance_out.close();
+	restore_out.close();
+	common_out.close();
+
+
+
 
     sim_control_t control;
 
