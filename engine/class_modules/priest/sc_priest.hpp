@@ -11,6 +11,7 @@
 #include "simulationcraft.hpp"
 
 #include "player/covenant.hpp"
+#include "player/pet_spawner.hpp"
 #include "sc_enums.hpp"
 
 namespace priestspace
@@ -48,6 +49,11 @@ namespace buffs
 struct dispersion_t;
 }
 
+namespace pets
+{
+struct void_tendril_t;
+}
+
 /**
  * Priest target data
  * Contains target specific things
@@ -66,6 +72,7 @@ public:
   struct buffs_t
   {
     propagate_const<buff_t*> schism;
+    propagate_const<buff_t*> death_and_madness_debuff;
   } buffs;
 
   priest_t& priest()
@@ -111,7 +118,6 @@ public:
     // Shadow
     propagate_const<buffs::dispersion_t*> dispersion;
     propagate_const<buff_t*> insanity_drain_stacks;
-    propagate_const<buff_t*> lingering_insanity;
     propagate_const<buff_t*> shadowform;
     propagate_const<buff_t*> shadowform_state;  // Dummy buff to track whether player entered Shadowform initially
     propagate_const<buff_t*> shadowy_insight;
@@ -120,7 +126,6 @@ public:
     propagate_const<buff_t*> vampiric_embrace;
     propagate_const<buff_t*> void_torrent;
     propagate_const<buff_t*> voidform;
-    propagate_const<buff_t*> death_and_madness_debuff;
     propagate_const<buff_t*> death_and_madness_buff;
 
     // Azerite Powers
@@ -203,13 +208,13 @@ public:
     // Shadow
     // T15
     const spell_data_t* fortress_of_the_mind;
-    const spell_data_t* shadowy_insight;
-    const spell_data_t* shadow_word_void;
+    const spell_data_t* death_and_madness;
+    const spell_data_t* unfurling_darkness;
     // T25
     const spell_data_t* sanlayn;        // NYI
     const spell_data_t* intangibility;  // NYI
     // T30
-    const spell_data_t* dark_void;
+    const spell_data_t* searing_nightmare;  // NYI
     const spell_data_t* misery;
     // T35
     const spell_data_t* last_word;
@@ -217,14 +222,14 @@ public:
     const spell_data_t* psychic_horror;
     // T40
     const spell_data_t* auspicious_spirits;
-    const spell_data_t* death_and_madness;
+    const spell_data_t* psychic_link;  // NYI
     const spell_data_t* shadow_crash;
     // T45
-    const spell_data_t* lingering_insanity;
+    const spell_data_t* damnation;
     const spell_data_t* void_torrent;
     // T50
     const spell_data_t* legacy_of_the_void;
-    const spell_data_t* dark_ascension;
+    const spell_data_t* ancient_madness;
     const spell_data_t* surrender_to_madness;
   } talents;
 
@@ -277,6 +282,8 @@ public:
 
     // Shadow
     propagate_const<cooldown_t*> void_bolt;
+    propagate_const<cooldown_t*> mind_blast;
+    propagate_const<cooldown_t*> void_eruption;
 
     // Holy
     propagate_const<cooldown_t*> holy_word_serenity;
@@ -302,7 +309,6 @@ public:
     propagate_const<gain_t*> insanity_blessing;
     propagate_const<gain_t*> shadowy_insight;
     propagate_const<gain_t*> vampiric_touch_health;
-    propagate_const<gain_t*> insanity_dark_ascension;
     propagate_const<gain_t*> insanity_death_throes;
     propagate_const<gain_t*> power_of_the_dark_side;
     propagate_const<gain_t*> insanity_lucid_dreams;
@@ -344,7 +350,6 @@ public:
   {
     propagate_const<actions::spells::mind_sear_tick_t*> mind_sear_tick;
     propagate_const<actions::spells::shadowy_apparition_spell_t*> shadowy_apparitions;
-    propagate_const<action_t*> void_tendril;
   } active_spells;
 
   // Items
@@ -353,10 +358,13 @@ public:
   } active_items;
 
   // Pets
-  struct
+  struct priest_pets_t
   {
     propagate_const<pet_t*> shadowfiend;
     propagate_const<pet_t*> mindbender;
+    spawner::pet_spawner_t<pets::void_tendril_t, priest_t> void_tendril;
+
+    priest_pets_t( priest_t& p );
   } pets;
 
   // Options
@@ -428,7 +436,7 @@ public:
     item_runeforge_t the_penitent_one;  // Effect implemented, but not hooked up to PW:Radiance
     // Shadow
     item_runeforge_t painbreaker_psalm;
-    item_runeforge_t shadowflame_prism; // TODO: Add 20% damage modifier
+    item_runeforge_t shadowflame_prism;  // TODO: Add 20% damage modifier
     item_runeforge_t eternal_call_to_the_void;
   } legendary;
 
@@ -519,6 +527,8 @@ private:
   void create_buffs_discipline();
   void init_spells_discipline();
   void init_rng_discipline();
+
+  void init_background_actions_shadow();
   void generate_apl_discipline_d();
   void generate_apl_discipline_h();
   std::unique_ptr<expr_t> create_expression_discipline( action_t* a, const util::string_view name_str );
@@ -542,6 +552,7 @@ public:
   void adjust_holy_word_serenity_cooldown();
   double tick_damage_over_time( timespan_t duration, const dot_t* dot ) const;
   void trigger_eternal_call_to_the_void( const dot_t* d );
+  void trigger_shadowy_apparitions( action_state_t* );
 
   /**
    * Insanity tracking
@@ -928,6 +939,25 @@ struct fiend_melee_t : public priest_pet_melee_t
 };
 }  // namespace actions
 }  // namespace fiend
+
+
+struct void_tendril_t final : public priest_pet_t
+{
+  void_tendril_t( priest_t* owner ) : priest_pet_t( owner->sim, *owner, "void_tendril", PET_VOID_TENDRIL, true )
+  {
+  }
+
+  void init_action_list() override
+  {
+    priest_pet_t::init_action_list();
+
+    action_priority_list_t* def = get_action_priority_list( "default" );
+    def->add_action( "mind_flay" );
+  }
+
+  action_t* create_action( util::string_view name, const std::string& options_str ) override;
+};
+
 }  // namespace pets
 
 namespace actions
@@ -1064,7 +1094,7 @@ public:
         double vf_multiplier = priest().buffs.voidform->data().effectN( 1 ).percent();
         // TODO: add this directly into vf_multiplier after PTR
         // Grab the Legacy of the Void Damage increase
-        lotv_multiplier = priest().talents.legacy_of_the_void->effectN( 7 ).percent();
+        lotv_multiplier = priest().talents.legacy_of_the_void->effectN( 4 ).percent();
         m *= 1.0 + vf_multiplier + lotv_multiplier;
       }
       if ( affected_by.shadowform_da && priest().buffs.shadowform->check() )

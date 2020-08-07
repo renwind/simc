@@ -7,6 +7,7 @@
 
 #include "sc_priest.hpp"
 
+#include "sc_enums.hpp"
 #include "tcb/span.hpp"
 
 namespace priestspace
@@ -759,6 +760,32 @@ struct boon_of_the_ascended_t final : public priest_buff_t<buff_t>
   }
 };
 
+struct death_and_madness_debuff_t final : public priest_buff_t<buff_t>
+{
+  propagate_const<cooldown_t*> swd_cooldown;
+  death_and_madness_debuff_t( priest_td_t& actor_pair )
+    : base_t( actor_pair, "death_and_madness_death_check",
+              actor_pair.priest().talents.death_and_madness->effectN( 3 ).trigger() ),
+      swd_cooldown( actor_pair.priest().get_cooldown( "shadow_word_death" ) )
+  {
+  }
+
+  void expire_override( int expiration_stacks, timespan_t remaining_duration ) override
+  {
+    // Fake-detect target demise by checking if buff was expired early
+    if ( remaining_duration > timespan_t::zero() )
+    {
+      sim->print_debug( "{} death_and_madness insanity gain buff triggered", priest() );
+
+      priest().buffs.death_and_madness_buff->trigger();
+
+      swd_cooldown->reset( true );
+    }
+
+    buff_t::expire_override( expiration_stacks, remaining_duration );
+  }
+};
+
 }  // namespace buffs
 
 namespace items
@@ -831,6 +858,73 @@ action_t* base_fiend_pet_t::create_action( util::string_view name, const std::st
   return priest_pet_t::create_action( name, options_str );
 }
 }  // namespace fiend
+
+struct void_tendril_mind_flay_t final : public priest_pet_spell_t
+{
+  const spell_data_t* void_tendril_insanity;
+
+  void_tendril_mind_flay_t( void_tendril_t& p )
+    : priest_pet_spell_t( "mind_flay", &p, p.o().find_spell( 193473 ) ),
+      void_tendril_insanity( p.o().find_spell( 336214 ) )
+  {
+    channeled    = true;
+    hasted_ticks = false;
+
+    // Merge the stats object with other instances of the pet
+    auto first_pet = p.o().find_pet( p.name_str );
+    if ( first_pet )
+    {
+      auto first_pet_action = first_pet->find_action( name_str );
+      if ( first_pet_action )
+      {
+        if ( stats == first_pet_action->stats )
+        {
+          // This is the first pet created. Add its stat as a child to priest mind_flay
+          auto owner_mind_flay_action = p.o().find_action( "mind_flay" );
+          if ( owner_mind_flay_action )
+          {
+            owner_mind_flay_action->add_child( this );
+          }
+        }
+        if ( !sim->report_pets_separately )
+        {
+          stats = first_pet_action->stats;
+        }
+      }
+    }
+  }
+
+  timespan_t composite_dot_duration( const action_state_t* ) const override
+  {
+    // Not hasted
+    return dot_duration;
+  }
+
+  timespan_t tick_time( const action_state_t* ) const override
+  {
+    // Not hasted
+    return base_tick_time;
+  }
+
+  void impact( action_state_t* s ) override
+  {
+    priest_pet_spell_t::impact( s );
+
+    p().o().generate_insanity( void_tendril_insanity->effectN( 1 ).base_value(),
+                               p().o().gains.insanity_eternal_call_to_the_void, s->action );
+  }
+};
+
+action_t* void_tendril_t::create_action( util::string_view name, const std::string& options_str )
+{
+  if ( name == "mind_flay" )
+  {
+    return new void_tendril_mind_flay_t( *this );
+  }
+
+  return priest_pet_t::create_action( name, options_str );
+}
+
 }  // namespace pets
 
 // ==========================================================================
@@ -844,7 +938,8 @@ priest_td_t::priest_td_t( player_t* target, priest_t& p ) : actor_target_data_t(
   dots.devouring_plague   = target->get_dot( "devouring_plague", &p );
   dots.unholy_transfusion = target->get_dot( "unholy_transfusion", &p );
 
-  buffs.schism = make_buff( *this, "schism", p.talents.schism );
+  buffs.schism                   = make_buff( *this, "schism", p.talents.schism );
+  buffs.death_and_madness_debuff = make_buff<buffs::death_and_madness_debuff_t>( *this );
 
   target->callbacks_on_demise.emplace_back( [ this ]( player_t* ) { target_demise(); } );
 }
@@ -877,13 +972,13 @@ priest_t::priest_t( sim_t* sim, util::string_view name, race_e r )
     specs(),
     mastery_spells(),
     cooldowns(),
-    gains(),
     rppm(),
+    gains(),
     benefits(),
     procs(),
     active_spells(),
     active_items(),
-    pets(),
+    pets( *this ),
     options(),
     action(),
     azerite(),
@@ -907,6 +1002,8 @@ void priest_t::create_cooldowns()
   cooldowns.holy_fire          = get_cooldown( "holy_fire" );
   cooldowns.holy_word_serenity = get_cooldown( "holy_word_serenity" );
   cooldowns.void_bolt          = get_cooldown( "void_bolt" );
+  cooldowns.mind_blast         = get_cooldown( "mind_blast" );
+  cooldowns.void_eruption      = get_cooldown( "void_eruption" );
 }
 
 /** Construct priest gains */
@@ -920,14 +1017,13 @@ void priest_t::create_gains()
   gains.insanity_pet                           = get_gain( "Insanity Gained from Shadowfiend" );
   gains.insanity_surrender_to_madness          = get_gain( "Insanity Gained from Surrender to Madness" );
   gains.insanity_wasted_surrendered_to_madness = get_gain( "Insanity Wasted from Surrendered to Madness" );
-  gains.insanity_dark_ascension                = get_gain( "Insanity Gained from Dark Ascension" );
   gains.vampiric_touch_health                  = get_gain( "Health from Vampiric Touch Ticks" );
   gains.insanity_lucid_dreams                  = get_gain( "Insanity Gained from Lucid Dreams" );
   gains.insanity_memory_of_lucid_dreams        = get_gain( "Insanity Gained from Memory of Lucid Dreams" );
   gains.insanity_death_and_madness             = get_gain( "Insanity Gained from Death and Madness" );
   gains.shadow_word_death_self_damage          = get_gain( "Shadow Word: Death self inflicted damage" );
   gains.insanity_mindgames                     = get_gain( "Insanity Gained from Mindgames" );
-  gains.insanity_eternal_call_to_the_void = get_gain( "Insanity Gained from Eternal Call to the Void Mind Flay's" );
+  gains.insanity_eternal_call_to_the_void      = get_gain( "Insanity Gained from Eternal Call to the Void Mind Flays" );
 }
 
 /** Construct priest procs */
@@ -1035,16 +1131,6 @@ double priest_t::composite_spell_haste() const
   if ( buffs.power_infusion->check() )
     h /= 1.0 + buffs.power_infusion->data().effectN( 1 ).percent();
 
-  if ( buffs.lingering_insanity->check() )
-  {
-    h /= 1.0 + ( buffs.lingering_insanity->check() ) * buffs.lingering_insanity->data().effectN( 1 ).percent();
-  }
-
-  if ( buffs.voidform->check() )
-  {
-    h /= 1.0 + ( buffs.voidform->check() * find_spell( 228264 )->effectN( 2 ).percent() / 10.0 );
-  }
-
   return h;
 }
 
@@ -1055,16 +1141,6 @@ double priest_t::composite_melee_haste() const
   // TODO: Wait for spell data to see where this effect is
   if ( buffs.power_infusion->check() )
     h /= 1.0 + buffs.power_infusion->data().effectN( 1 ).percent();
-
-  if ( buffs.lingering_insanity->check() )
-  {
-    h /= 1.0 + ( buffs.lingering_insanity->check() - 1 ) * buffs.lingering_insanity->data().effectN( 1 ).percent();
-  }
-
-  if ( buffs.voidform->check() )
-  {
-    h /= 1.0 + ( buffs.voidform->check() * find_spell( 228264 )->effectN( 2 ).percent() / 10.0 );
-  }
 
   return h;
 }
@@ -1426,6 +1502,8 @@ void priest_t::init_rng()
 void priest_t::init_background_actions()
 {
   action.ascended_eruption = new actions::spells::ascended_eruption_t( *this );
+
+  init_background_actions_shadow();
 }
 
 void priest_t::vision_of_perfection_proc()
@@ -1743,6 +1821,23 @@ void priest_t::arise()
   base_t::arise();
 
   buffs.whispers_of_the_damned->trigger();
+}
+
+// Legendary Eternal Call to the Void trigger
+void priest_t::trigger_eternal_call_to_the_void( const dot_t* )
+{
+  if ( rppm.eternal_call_to_the_void->trigger() )
+  {
+    procs.void_tendril->occur();
+    auto spawned_pets = pets.void_tendril.spawn();
+  }
+}
+
+priest_t::priest_pets_t::priest_pets_t( priest_t& p ) : shadowfiend(), mindbender(), void_tendril( "void_tendril", &p )
+{
+  auto void_tendril_spell = p.find_spell( 193473 );
+  // Add 1ms to ensure pet is dismissed after last dot tick.
+  void_tendril.set_default_duration( void_tendril_spell->duration() + timespan_t::from_millis( 1 ) );
 }
 
 buffs::dispersion_t::dispersion_t( priest_t& p )

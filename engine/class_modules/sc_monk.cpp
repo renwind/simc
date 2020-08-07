@@ -7891,7 +7891,8 @@ void monk_t::init_spells()
 
   // Specialization spells ====================================
   // Multi-Specialization & Class Spells
-  spec.blackout_kick            = find_class_spell( "Blackout Kick" );
+  //spec.blackout_kick            = find_class_spell( "Blackout Kick" );
+  spec.blackout_kick            = find_spell( 100784 );  // Mistweaver's spec data links to the wrong blackout kick ID
   spec.blackout_kick_2          = find_specialization_spell( 261916 );
   spec.blackout_kick_3          = find_specialization_spell( 261917 );
   spec.crackling_jade_lightning = find_class_spell( "Crackling Jade Lightning" );

@@ -322,7 +322,6 @@ action_t::action_t( action_e ty, util::string_view token, player_t* p, const spe
     dot_behavior( DOT_REFRESH ),
     ability_lag(),
     ability_lag_stddev(),
-    rp_gain(),
     min_gcd(),
     gcd_type(gcd_haste_type::NONE ),
     trigger_gcd( p->base_gcd ),
@@ -4760,6 +4759,8 @@ void action_t::apply_affecting_effect( const spelleffect_data_t& effect )
 
           case P_COOLDOWN:
             base_recharge_multiplier *= 1 + effect.percent();
+            if ( base_recharge_multiplier == 0)
+                cooldown->duration = timespan_t::zero();
             sim->print_debug( "{} cooldown recharge multiplier modified by {}%", *this, effect.base_value() );
             break;
 
