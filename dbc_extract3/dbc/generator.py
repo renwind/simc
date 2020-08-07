@@ -2854,6 +2854,9 @@ class SpellDataGenerator(DataGenerator):
             fields = sname.field('name', 'id')
             hotfix.add(sname, ('name', 0))
 
+            fields += misc.field('id_icon')
+
+
             fields += misc.field('school', 'proj_speed')
             hotfix.add(misc, ('proj_speed', 3), ('school', 4))
 

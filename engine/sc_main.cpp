@@ -29,6 +29,8 @@
 #include "nga/nga_data.hpp"
 #include "dbc/sc_spell_info.hpp"
 #include "dbc/covenant_data.hpp"
+#include "util/cache.hpp"
+#include "util/xml.hpp"
 
 namespace { // anonymous namespace ==========================================
 
@@ -258,7 +260,6 @@ void print_version_info(const dbc_t& dbc)
 } // anonymous namespace ====================================================
 
 // sim_t::main ==============================================================
-
 int sim_t::main(const std::vector<std::string>& args)
 {
 	try
@@ -277,9 +278,35 @@ int sim_t::main(const std::vector<std::string>& args)
 
 
 		// renwind modified
-		std::ofstream element_nga_talbe("f:/element_nga_table.txt");
-		element_nga_talbe << to_nga_table(*dbc);
-		element_nga_talbe.close();
+		std::ofstream element_nga_skill_talbe("f:/element_nga_skill_talbe.txt");
+		element_nga_skill_talbe << nga_to_skill_table(*dbc);
+		element_nga_skill_talbe.close();
+
+		std::ofstream element_nga_conduit_talbe("f:/element_nga_conduit_talbe.txt");
+		element_nga_conduit_talbe << nga_to_conduit_table(*dbc);
+		element_nga_conduit_talbe.close();
+	
+
+
+		std::string result;
+		if (http::get(result, "http://shadowlands.wowhead.com/icon=135854", cache::CURRENT))
+			std::cout << result << '\n';
+		std::string strKey = ".jpg";
+		auto iconUrlKey = result.find(strKey);
+		auto iconUrlEnd = result.find("\"", iconUrlKey);
+		auto iconUrlBegin = result.rfind("\"", iconUrlKey)+1;
+		auto iconUrl = result.substr(iconUrlBegin, iconUrlEnd - iconUrlBegin);
+
+		// url from wowhead
+		////std::string url_www = "https://" + source_str(source) + ".wowhead.com/item="
+		////	+ util::to_string(id) + "&xml";
+		//std::string url_www = "https://shadowlands.wowhead.com/icon=" + util::to_string(135854) + "/unknown-icon&xml";
+		//url_www = "https://shadowlands.wowhead.com/spell=338343";
+		//url_www = "https://shadowlands.wowhead.com/icon=135854/unknown-icon?xml";
+
+		//std::shared_ptr<xml_node_t> node = xml_node_t::get(url_www, cache::CURRENT, "");
+		//node->print();
+
 
 		std::ofstream spell_out("f:/all_spell.txt");
 		std::ofstream element_out("f:/element_spell.txt");
@@ -289,9 +316,7 @@ int sim_t::main(const std::vector<std::string>& args)
 		std::ofstream common_out("f:/common_spell.txt");
 		for (const spell_data_t &spell : spell_data_t::data())
 		{
-			spell_out << spell_info::to_str(*dbc, &spell, MAX_LEVEL);
-			//if (spell.flags(spell_attribute::SX_HIDDEN))
-			//	continue;
+			//spell_out << spell_info::to_str(*dbc, &spell, MAX_LEVEL);
 
 			const auto& conduit = conduit_entry_t::find_by_spellid(spell.id(), dbc->ptr);
 
