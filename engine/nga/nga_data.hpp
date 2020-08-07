@@ -10,9 +10,10 @@ struct nga_table_data_format
 	unsigned width;
 };
 
-static const std::array<nga_table_data_format, 7> __nga_spell_data_format{ {
+static const std::array<nga_table_data_format, 8> __nga_spell_data_format{ {
 	{"", 0},
 	{"技能", 0},
+	{"图标", 0},
 	{"类型", 0},
 	{"法强系数", 0},
 	{"施法时间", 0},
@@ -119,4 +120,5 @@ std::string nga_color(std::string value, eNgaColor c);
 
 std::string nga_align_center(std::string value);
 
-std::string to_nga_table(const dbc_t& dbc);
+std::string nga_to_skill_table(const dbc_t& dbc);
+std::string nga_to_conduit_table(const dbc_t& dbc);
