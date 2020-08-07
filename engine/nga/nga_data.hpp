@@ -10,22 +10,10 @@ struct nga_table_data_format
 	unsigned width;
 };
 
-<<<<<<< HEAD
-<<<<<<< HEAD
 static const std::array<nga_table_data_format, 8> __nga_spell_data_format{ {
 	{"", 0},
 	{"技能", 0},
 	{"图标", 0},
-=======
-static const std::array<nga_table_data_format, 7> __nga_spell_data_format{ {
-	{"", 0},
-	{"技能", 0},
->>>>>>> nga/zh_CN
-=======
-static const std::array<nga_table_data_format, 7> __nga_spell_data_format{ {
-	{"", 0},
-	{"技能", 0},
->>>>>>> 4f21757d76... nga/zh_CN
 	{"类型", 0},
 	{"法强系数", 0},
 	{"施法时间", 0},
@@ -38,42 +26,13 @@ static constexpr auto __nga_elemental_common_spellid_map = util::make_static_map
 	{188389, "烈焰震击"},
 	{188196, "闪电箭"},
 	{188443, "闪电链"},
-<<<<<<< HEAD
-	{51505, "熔岩爆裂"},
-=======
 	{285452, "熔岩爆裂"},
->>>>>>> 4f21757d76... nga/zh_CN
 	{61882, "地震术"},
 	{8042, "大地震击"},
 	{60188, "元素之怒"},
 	{190493, "怒雷"},
 	} );
 
-<<<<<<< HEAD
-<<<<<<< HEAD
-static constexpr auto __nga_enhance_common_spellid_map = util::make_static_map<unsigned, util::string_view>({
-	{33757, "风怒武器"},
-	{17364, "风暴打击"},
-	{187874, "毁灭闪电"},
-	{187880, "漩涡武器"},
-	{60103, "熔岩猛击"},
-	{51533, "野性狼魂"},
-	{334046, "鞭笞烈焰"},
-	{8512, "风怒图腾"},
-	{188389, "烈焰震击"},
-	{188443, "闪电链"},
-	{334308, "闪电链（等级2）"},
-	{201845, "风暴使者"},
-	{334175, "风暴怒火"},
-	{77223, "精通：增强元素"},
-	{58875, "幽魂步"},
-	});
-
-
-=======
->>>>>>> nga/zh_CN
-=======
->>>>>>> 4f21757d76... nga/zh_CN
 static constexpr auto __nga_force_spellid_map = util::make_static_map<unsigned, util::string_view>({
 	{324386, "暮钟图腾(格里恩)"},
 	{324520, "暮钟图腾伤害"},
@@ -161,14 +120,5 @@ std::string nga_color(std::string value, eNgaColor c);
 
 std::string nga_align_center(std::string value);
 
-<<<<<<< HEAD
-<<<<<<< HEAD
-std::string nga_to_skill_table(const dbc_t& dbc, unsigned shaman_type);
+std::string nga_to_skill_table(const dbc_t& dbc);
 std::string nga_to_conduit_table(const dbc_t& dbc);
-std::string nga_to_lengendary_table(const dbc_t& dbc)
-=======
-std::string to_nga_table(const dbc_t& dbc);
->>>>>>> nga/zh_CN
-=======
-std::string to_nga_table(const dbc_t& dbc);
->>>>>>> 4f21757d76... nga/zh_CN
