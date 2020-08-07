@@ -366,6 +366,9 @@ struct spell_data_t
 {
   const char* _name;               // Spell name from Spell.dbc stringblock (enGB)
   unsigned    _id;                 // Spell ID in dbc
+  // renwind modified begin
+  unsigned    _icon_id;            // Spell ID in dbc
+  // renwind modified end
   unsigned    _school;             // Spell school mask
   double      _prj_speed;          // Projectile Speed
   uint64_t    _race_mask;          // Racial mask for the spell
