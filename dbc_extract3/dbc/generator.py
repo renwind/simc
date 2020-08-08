@@ -4193,7 +4193,8 @@ class SoulbindAbilityGenerator(DataGenerator):
             fields = garr_talent.ref('id_spell').field('id')
             fields += soulbind.field('id_covenant')
             fields += garr_talent.ref('id_spell').field('name')
-
+            fields += soulbind.field('id_spec_set')
+            
             self.output_record(fields)
 
         self.output_footer()
