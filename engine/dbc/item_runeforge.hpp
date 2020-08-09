@@ -21,6 +21,11 @@ struct runeforge_legendary_entry_t
   static util::span<const runeforge_legendary_entry_t> find( unsigned bonus_id, bool ptr )
   { return dbc::find_many<runeforge_legendary_entry_t>( bonus_id, ptr, {}, &runeforge_legendary_entry_t::bonus_id ); }
 
+  static const runeforge_legendary_entry_t &find_spell(unsigned id, bool ptr)
+  {
+	  return dbc::find<runeforge_legendary_entry_t>(id, ptr, &runeforge_legendary_entry_t::spell_id);
+  }
+
   static util::span<const runeforge_legendary_entry_t> find( util::string_view name, bool ptr, bool tokenized = false );
 
   static const runeforge_legendary_entry_t& nil()

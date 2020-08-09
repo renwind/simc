@@ -73,6 +73,8 @@ std::string nga_icon_url(unsigned value)
 	{
 		std::string strKey = ".jpg";
 		auto iconUrlKey = result.find(strKey);
+		if (iconUrlKey == std::string::npos)
+			return "";
 		auto iconUrlEnd = result.find("\"", iconUrlKey);
 		auto iconUrlBegin = result.rfind("\"", iconUrlKey) + 1;
 		auto iconUrl = result.substr(iconUrlBegin, iconUrlEnd - iconUrlBegin);
@@ -596,6 +598,64 @@ std::string nga_to_conduit_table(const dbc_t& dbc)
 
 
 
+static const std::array<nga_table_data_format, 4> __nga_lengendary_data_format{ {
+	{"", 0},
+	{"传说之力", 0},
+	{"图标", 0},
+	{"描述", 0},
+} };
+
+std::string default_icon_image = "https://wow.zamimg.com/images/wow/icons/large/ability_revendreth_demonhunter.jpg";
+
+std::string _nga_to_legendary_table_row(const dbc_t& dbc, const spell_data_t* spell, int level, std::string rowspan = "")
+{
+
+	std::ostringstream s;
+	s << "[tr]" << std::endl;
+
+	s << rowspan;
+
+	const spelltext_data_t& spell_text = dbc.spell_text(spell->id());
+	const spelldesc_vars_data_t& spelldesc_vars = dbc.spell_desc_vars(spell->id());
+
+	// Name
+	std::string name_str = spell->name_cstr();
+	s << nga_td(nga_align_center(nga_b(nga_color(name_str, nc_orangered))));
+
+	// Icon image
+	auto icon_url = nga_icon_url(spell->_icon_id);
+	if (icon_url.empty())
+		icon_url = default_icon_image;
+	s << nga_td(nga_align_center(nga_img(icon_url)));
+
+	// Desc
+	if (spell_text.desc())
+		s << nga_td(spell_text.desc());
+	else
+		s << nga_td("");
+
+	s << "[/tr]" << std::endl;
+
+	return s.str();
+}
+
+
+void nga_to_legendary_talbe_row(const dbc_t& dbc, std::vector< const spell_data_t *> &spells, std::ostringstream &s, std::string rowspanName = "")
+{
+	std::string row_span = "[td rowspan=" + nga_number((double)spells.size()) + "]" + rowspanName + "[/td]";
+	bool bFirstLine = true;
+	for (const spell_data_t *spell : spells)
+	{
+		if (bFirstLine)
+		{
+			s << _nga_to_legendary_table_row(dbc, spell, MAX_LEVEL, row_span);
+			bFirstLine = false;
+		}
+		else
+			s << _nga_to_legendary_table_row(dbc, spell, MAX_LEVEL);
+	}
+}
+
 std::string nga_to_lengendary_table(const dbc_t& dbc, unsigned shaman_type)
 {
 	std::ostringstream s;
@@ -603,7 +663,7 @@ std::string nga_to_lengendary_table(const dbc_t& dbc, unsigned shaman_type)
 
 	// first row
 	std::ostringstream sr;
-	util::span<const nga_table_data_format> ngaData = ::util::make_span(__nga_conduit_data_format);
+	util::span<const nga_table_data_format> ngaData = ::util::make_span(__nga_lengendary_data_format);
 	for (auto data : ngaData)
 	{
 		sr << nga_td(nga_align_center(nga_b(data.value)), data.width);
@@ -614,55 +674,27 @@ std::string nga_to_lengendary_table(const dbc_t& dbc, unsigned shaman_type)
 	std::vector< const spell_data_t *> elemental_vector;
 	std::vector< const spell_data_t *> enchance_vector;
 	std::vector< const spell_data_t *> restore_vector;
-	std::vector< const spell_data_t *> force_vector;
-	std::vector< const spell_data_t *> common_vector;
-	for (const spell_data_t &spell : spell_data_t::data())
+
+	for (const runeforge_legendary_entry_t &lengendary : runeforge_legendary_entry_t::data(dbc.ptr))
 	{
-		if (spell.class_family() == 11)
+		auto spell = spell_data_t::find(lengendary.spell_id);
+		if (spell)
 		{
-			const auto& conduit = conduit_entry_t::find_by_spellid(spell.id(), dbc.ptr);
-			if (!(conduit.spell_id && conduit.spell_id == spell.id()))
-			{
-				continue;
-			}
-
-			bool bMasterConduit = false;
-			for (auto conduitType : __nga_master_conduit_id)
-			{
-				if (conduitType.conduit_spell_id == spell.id())
-				{
-					bMasterConduit = true;
-					switch (conduitType.type)
-					{
-					case e_elemental:
-						elemental_vector.push_back(&spell);
-						break;
-					case e_enhance:
-						enchance_vector.push_back(&spell);
-						break;
-					case e_restore:
-						restore_vector.push_back(&spell);
-						break;
-					case e_force:
-						force_vector.push_back(&spell);
-						break;
-					}
-				}
-			}
-
-			if (bMasterConduit == false)
-			{
-				common_vector.push_back(&spell);
-			}
+			if (lengendary.specialization_id == SHAMAN_ELEMENTAL)
+				elemental_vector.push_back(spell);
+			else if (lengendary.specialization_id == SHAMAN_ENHANCEMENT)
+				enchance_vector.push_back(spell);
+			else if (lengendary.specialization_id == SHAMAN_RESTORATION)
+				restore_vector.push_back(spell);
 		}
 	}
 
-	nga_to_conduit_talbe_row(dbc, elemental_vector, s, "元素");
-	nga_to_conduit_talbe_row(dbc, enchance_vector, s, "增强");
-	nga_to_conduit_talbe_row(dbc, restore_vector, s, "恢复");
-	nga_to_conduit_talbe_row(dbc, force_vector, s, "盟约");
-	nga_to_conduit_talbe_row(dbc, common_vector, s, "通用");
-
+	if(shaman_type==0)
+		nga_to_legendary_talbe_row(dbc, elemental_vector, s, "元素");
+	else if (shaman_type == 1)
+		nga_to_legendary_talbe_row(dbc, enchance_vector, s, "增强");
+	else if (shaman_type == 2)
+		nga_to_legendary_talbe_row(dbc, restore_vector, s, "恢复");
 
 	s << "[/table]" << std::endl;
 
