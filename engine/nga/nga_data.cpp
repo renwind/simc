@@ -155,7 +155,7 @@ std::string nga_font(std::string value)
 std::string nga_align_center(std::string value)
 {
 	std::ostringstream s;
-	s << "[align = center]";
+	s << "[align=center]";
 	s << value;
 	s << "[/align]";
 
@@ -312,11 +312,11 @@ std::string nga_to_skill_table(const dbc_t& dbc, unsigned shaman_type)
 	{
 		if (bFirstLine)
 		{
-			s << nga_to_skill_table_row(dbc, spell, MAX_LEVEL, shaman_type, row_span);
+			s << nga_to_skill_table_row(dbc, spell, shaman_type, MAX_LEVEL, row_span);
 			bFirstLine = false;
 		}
 		else
-			s << nga_to_skill_table_row(dbc, spell, MAX_LEVEL, shaman_type);
+			s << nga_to_skill_table_row(dbc, spell, shaman_type, MAX_LEVEL );
 	}
 
 	row_span = "[td rowspan=" + nga_number((double)force_spell_vector.size()) + "]ÃËÔ¼[/td]";
@@ -325,11 +325,11 @@ std::string nga_to_skill_table(const dbc_t& dbc, unsigned shaman_type)
 	{
 		if (bFirstLine)
 		{
-			s << nga_to_skill_table_row(dbc, spell, MAX_LEVEL, shaman_type, row_span);
+			s << nga_to_skill_table_row(dbc, spell, shaman_type, MAX_LEVEL, row_span);
 			bFirstLine = false;
 		}
 		else
-			s << nga_to_skill_table_row(dbc, spell, MAX_LEVEL, shaman_type);
+			s << nga_to_skill_table_row(dbc, spell, shaman_type, MAX_LEVEL);
 	}
 
 
@@ -343,11 +343,11 @@ std::string nga_to_skill_table(const dbc_t& dbc, unsigned shaman_type)
 			if (talent.row() * 10 + talent.col() == 40)
 			{
 				std::string row_span = "[td rowspan=3]T5[/td]";
-				talentTreeMap[talent.row() * 10 + talent.col()] = nga_to_skill_table_row(dbc, talent.spell(), MAX_LEVEL, shaman_type, row_span);
+				talentTreeMap[talent.row() * 10 + talent.col()] = nga_to_skill_table_row(dbc, talent.spell(), shaman_type, MAX_LEVEL, row_span);
 			}
 			if (talent.row() * 10 + talent.col() == 42)
 			{
-				talentTreeMap[talent.row() * 10 + talent.col()] = nga_to_skill_table_row(dbc, talent.spell(), MAX_LEVEL, shaman_type);
+				talentTreeMap[talent.row() * 10 + talent.col()] = nga_to_skill_table_row(dbc, talent.spell(), shaman_type, MAX_LEVEL);
 			}
 
 			// elemental talent
@@ -363,7 +363,7 @@ std::string nga_to_skill_table(const dbc_t& dbc, unsigned shaman_type)
 				{
 					int tier = talent.row() + 1;
 					std::string row_span = "[td rowspan=3]T" + nga_number(tier) + "[/td]";
-					talentTreeMap[talent.row() * 10 + talent.col()] = nga_to_skill_table_row(dbc, talent.spell(), MAX_LEVEL, shaman_type, row_span);
+					talentTreeMap[talent.row() * 10 + talent.col()] = nga_to_skill_table_row(dbc, talent.spell(), shaman_type, MAX_LEVEL, row_span);
 				}
 				else
 					talentTreeMap[talent.row() * 10 + talent.col()] = nga_to_skill_table_row(dbc, talent.spell(), shaman_type, MAX_LEVEL);

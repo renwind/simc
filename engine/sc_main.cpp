@@ -278,13 +278,13 @@ int sim_t::main(const std::vector<std::string>& args)
 
 
 		// renwind modified
-		//std::ofstream element_nga_skill_talbe("f:/element_nga_skill_talbe.txt");
-		//element_nga_skill_talbe << nga_to_skill_table(*dbc,0);
-		//element_nga_skill_talbe.close();
+		std::ofstream element_nga_skill_talbe("f:/element_nga_skill_talbe.txt");
+		element_nga_skill_talbe << nga_to_skill_table(*dbc,0);
+		element_nga_skill_talbe.close();
 
-		//std::ofstream enhance_nga_skill_talbe("f:/enhance_nga_skill_talbe.txt");
-		//enhance_nga_skill_talbe << nga_to_skill_table(*dbc,1);
-		//enhance_nga_skill_talbe.close();
+		std::ofstream enhance_nga_skill_talbe("f:/enhance_nga_skill_talbe.txt");
+		enhance_nga_skill_talbe << nga_to_skill_table(*dbc,1);
+		enhance_nga_skill_talbe.close();
 
 		std::ofstream element_nga_legendary_talbe("f:/element_nga_to_lengendary_table.txt");
 		element_nga_legendary_talbe << nga_to_lengendary_table(*dbc, 0);
