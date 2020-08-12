@@ -4071,6 +4071,22 @@ double player_t::composite_player_absorb_multiplier( const action_state_t* ) con
   return 1.0;
 }
 
+double player_t::composite_player_target_crit_chance( player_t* target ) const
+{
+  double c = 0.0;
+
+  if ( actor_target_data_t* td = get_owner_or_self()->get_target_data( target ) )
+  {
+    // Essence: Blood of the Enemy Major debuff
+    c += td->debuff.blood_of_the_enemy->stack_value();
+
+    // Consumable: Potion of Focused Resolve
+    c += td->debuff.focused_resolve->stack_value();
+  }
+
+  return c;
+}
+
 double player_t::composite_player_critical_damage_multiplier( const action_state_t* /* s */ ) const
 {
   double m = 1.0;
@@ -4375,10 +4391,10 @@ double player_t::composite_player_vulnerability( school_e school ) const
     m *= 1.0 + debuffs.damage_taken->current_stack * 0.01;
 
   if ( debuffs.mystic_touch &&
-       dbc::has_common_school( debuffs.mystic_touch->data().effectN( 1 ).school_type(), school ) )
+       debuffs.mystic_touch->data().effectN( 1 ).has_common_school( school ) )
     m *= 1.0 + debuffs.mystic_touch->value();
 
-  if ( debuffs.chaos_brand && dbc::has_common_school( debuffs.chaos_brand->data().effectN( 1 ).school_type(), school ) )
+  if ( debuffs.chaos_brand && debuffs.chaos_brand->data().effectN( 1 ).has_common_school( school ) )
     m *= 1.0 + debuffs.chaos_brand->value();
 
   return m;
@@ -12098,47 +12114,42 @@ action_t* player_t::select_action( const action_priority_list_t& list,
   uint64_t _visited       = visited_apls_;
   size_t attempted_random = 0;
 
-  const std::vector<action_t*>* action_list = nullptr;
+  util::span<action_t* const> action_list;
   switch ( type )
   {
     case execute_type::OFF_GCD:
-      action_list = &( list.off_gcd_actions );
+      action_list = list.off_gcd_actions;
       break;
     case execute_type::CAST_WHILE_CASTING:
-      action_list = &( list.cast_while_casting_actions );
+      action_list = list.cast_while_casting_actions;
       break;
     default:
-      action_list = &( list.foreground_action_list );
+      action_list = list.foreground_action_list;
       break;
   }
 
-  for ( size_t i = 0, num_actions = action_list->size(); i < num_actions; ++i )
+  for ( action_t* a : action_list )
   {
     visited_apls_ = _visited;
-    action_t* a   = nullptr;
 
     if ( list.random == 1 )
     {
-      size_t random = static_cast<size_t>( rng().range( 0, static_cast<double>( num_actions ) ) );
-      a             = (*action_list)[ random ];
+      size_t random = rng().range( action_list.size() );
+      a             = action_list[ random ];
     }
     else
     {
       double skill = list.player->current.skill - list.player->current.skill_debuff;
       if ( skill != 1 && rng().roll( ( 1 - skill ) * 0.5 ) )
       {
-        size_t max_random_attempts = static_cast<size_t>( num_actions * ( skill * 0.5 ) );
-        size_t random              = static_cast<size_t>( rng().range( 0, static_cast<double>( num_actions ) ) );
-        a                          = (*action_list)[ random ];
+        size_t max_random_attempts = static_cast<size_t>( action_list.size() * ( skill * 0.5 ) );
+        size_t random              = rng().range( action_list.size() );
+        a                          = action_list[ random ];
         attempted_random++;
         // Limit the amount of attempts to select a random action based on skill, then bail out and try again in 100
         // ms.
         if ( attempted_random > max_random_attempts )
           break;
-      }
-      else
-      {
-        a = (*action_list)[ i ];
       }
     }
 

@@ -768,7 +768,7 @@ void action_t::parse_effect_data( const spelleffect_data_t& spelleffect_data )
         energize_amount   = spelleffect_data.resource( energize_resource );
       }
       break;
-      
+
     default:
       break;
   }
@@ -1277,13 +1277,16 @@ double action_t::calculate_direct_amount( action_state_t* state ) const
     amount = 0;
   }
 
-  sim->print_debug(
-      "{} direct amount for {}: amount={} initial_amount={} weapon={} base={} s_mod={} s_power={} "
-      "a_mod={} a_power={} mult={} w_mult={} w_slot_mod={} bonus_da={}",
-      player->name(), name(), amount, state->result_raw, weapon_amount, base_direct_amount,
-      spell_direct_power_coefficient( state ), state->composite_spell_power(),
-      attack_direct_power_coefficient( state ), state->composite_attack_power(), state->composite_da_multiplier(),
-      weapon_multiplier, weapon_slot_modifier, bonus_da( state ) );
+  if ( sim->debug )
+  {
+    sim->print_debug(
+        "{} direct amount for {}: amount={} initial_amount={} weapon={} base={} s_mod={} s_power={} "
+        "a_mod={} a_power={} mult={} w_mult={} w_slot_mod={} bonus_da={}",
+        player->name(), name(), amount, state->result_raw, weapon_amount, base_direct_amount,
+        spell_direct_power_coefficient( state ), state->composite_spell_power(),
+        attack_direct_power_coefficient( state ), state->composite_attack_power(), state->composite_da_multiplier(),
+        weapon_multiplier, weapon_slot_modifier, bonus_da( state ) );
+  }
 
   // Record total amount to state
   if ( result_is_miss( state->result ) )
@@ -1337,23 +1340,7 @@ double action_t::composite_spell_power() const
 
 double action_t::composite_target_crit_chance( player_t* target ) const
 {
-  actor_target_data_t* td = player->get_owner_or_self()->get_target_data( target );
-
-  double c = 0.0;
-
-  if ( td )
-  {
-    // Essence: Blood of the Enemy Major debuff
-    c += td->debuff.blood_of_the_enemy->stack_value();
-
-    // Consumable: Potion of Focused Resolve (TODO: Does this apply to pets as well?)
-    if ( !player->is_pet() )
-    {
-      c += td->debuff.focused_resolve->stack_value();
-    }
-  }
-
-  return c;
+  return player->composite_player_target_crit_chance( target );
 }
 
 double action_t::composite_target_multiplier(player_t* target) const
@@ -1430,7 +1417,8 @@ std::vector<player_t*>& action_t::target_list() const
   {
     available_targets( target_cache.list );  // This grabs the full list of targets, which will also pickup various
                                              // awfulness that some classes have.. such as prismatic crystal.
-    check_distance_targeting( target_cache.list );
+    if ( sim->distance_targeting_enabled )
+      check_distance_targeting( target_cache.list );
     target_cache.is_valid = true;
   }
 
@@ -1516,10 +1504,11 @@ void action_t::execute()
     sim->cancel();
   }
 
-  if ( n_targets() == 0 && target->is_sleeping() )
+  int num_targets = n_targets();
+  if ( num_targets == 0 && target->is_sleeping() )
     return;
 
-  if ( !execute_targeting( this ) )
+  if ( sim->distance_targeting_enabled && !execute_targeting( this ) )
   {
     cancel();  // This cancels the cast if the target moves out of range while the spell is casting.
     return;
@@ -1552,18 +1541,18 @@ void action_t::execute()
     tick_action->snapshot_state( tick_action->execute_state, amount_type( tick_action->execute_state, tick_action->direct_tick ) );
   }
 
-  size_t num_targets;
-  if ( is_aoe() )  // aoe
+  if ( num_targets == -1 || num_targets > 0 )  // aoe
   {
     std::vector<player_t*>& tl = target_list();
-    num_targets                = ( n_targets() < 0 ) ? tl.size() : std::min( tl.size(), as<size_t>( n_targets() ) );
+    const int max_targets = as<int>( tl.size() );
+    num_targets           = ( num_targets < 0 ) ? max_targets : std::min( max_targets, num_targets );
 
-    for ( size_t t = 0, max_targets = tl.size(); t < num_targets && t < max_targets; t++ )
+    for ( int t = 0; t < num_targets; t++ )
     {
       action_state_t* s = get_state( pre_execute_state );
       s->target         = tl[ t ];
-      s->n_targets      = std::min( num_targets, tl.size() );
-      s->chain_target   = as<int>( t );
+      s->n_targets      = as<unsigned>( num_targets );
+      s->chain_target   = t;
       if ( !pre_execute_state )
       {
         snapshot_state( s, amount_type( s ) );
@@ -1669,7 +1658,8 @@ void action_t::execute()
     target = default_target;
   }
 
-  if ( energize_type_() == action_energize::ON_CAST || ( energize_type_() == action_energize::ON_HIT && hit_any_target ) )
+  const action_energize energize_type = energize_type_();
+  if ( energize_type == action_energize::ON_CAST || ( energize_type == action_energize::ON_HIT && hit_any_target ) )
   {
     auto amount = composite_energize_amount( execute_state );
     if ( amount != 0 )
@@ -1677,7 +1667,7 @@ void action_t::execute()
       gain_energize_resource( energize_resource_(), amount, energize_gain( execute_state ) );
     }
   }
-  else if ( energize_type_() == action_energize::PER_HIT )
+  else if ( energize_type == action_energize::PER_HIT )
   {
     auto amount = composite_energize_amount( execute_state ) * num_targets_hit;
     if ( amount != 0 )
@@ -1744,7 +1734,7 @@ void action_t::tick( dot_t* d )
   }
 
   if ( energize_type_() == action_energize::PER_TICK && d->get_last_tick_factor() >= 1.0)
-  {    
+  {
     // Partial tick is not counted for resource gain
     gain_energize_resource( energize_resource_(), composite_energize_amount( d->state ), gain );
   }
@@ -3483,7 +3473,7 @@ std::unique_ptr<expr_t> action_t::create_expression( util::string_view name_str 
       {
         if ( proxy_expr.size() <= action.target->actor_index )
         {
-          
+
           std::generate_n(std::back_inserter(proxy_expr), action.target->actor_index + 1 - proxy_expr.size(), []{ return std::unique_ptr<expr_t>(); });
         }
 
@@ -4411,7 +4401,7 @@ bool action_t::execute_targeting(action_t* action) const
   return true;
 }
 
-// This returns a list of all targets currently in range. 
+// This returns a list of all targets currently in range.
 std::vector<player_t*> action_t::targets_in_range_list(
   std::vector<player_t*>& tl) const
 {

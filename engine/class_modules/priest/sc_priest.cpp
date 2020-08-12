@@ -474,7 +474,10 @@ struct ascended_nova_t final : public priest_spell_t
     priest_spell_t::impact( s );
 
     // gain 1 stack for each target damanged
-    priest().buffs.boon_of_the_ascended->increment( grants_stacks );
+    if ( priest().buffs.boon_of_the_ascended->check() )
+    {
+      priest().buffs.boon_of_the_ascended->increment( grants_stacks );
+    }
   }
 
   bool ready() override
@@ -510,7 +513,10 @@ struct ascended_blast_t final : public priest_spell_t
     priest_spell_t::impact( s );
 
     // gain 5 stacks on impact
-    priest().buffs.boon_of_the_ascended->increment( grants_stacks );
+    if ( priest().buffs.boon_of_the_ascended->check() )
+    {
+      priest().buffs.boon_of_the_ascended->increment( grants_stacks );
+    }
   }
 
   bool ready() override
@@ -533,7 +539,7 @@ struct ascended_eruption_t final : public priest_spell_t
     : priest_spell_t( "ascended_eruption", p, p.find_spell( 325326 ) ),
       base_da_increase( p.covenant.boon_of_the_ascended->effectN( 5 ).percent() +
                         // 1% increase from Courageous Ascension not found in spelldata
-                        p.conduits.courageous_ascension->ok() * 0.01 )
+                        p.conduits.courageous_ascension->effectN( 2 ).percent() )
   {
     aoe        = -1;
     background = true;
@@ -743,10 +749,15 @@ struct fae_blessings_t final : public priest_buff_t<buff_t>
 // ==========================================================================
 struct boon_of_the_ascended_t final : public priest_buff_t<buff_t>
 {
-  boon_of_the_ascended_t( priest_t& p ) : base_t( p, "boon_of_the_ascended", p.covenant.boon_of_the_ascended )
+  int stacks;
+
+  boon_of_the_ascended_t( priest_t& p )
+    : base_t( p, "boon_of_the_ascended", p.covenant.boon_of_the_ascended ),
+      stacks( as<int>( data().max_stacks() ) )
   {
     // Adding stacks should not refresh the duration
     set_refresh_behavior( buff_refresh_behavior::DISABLED );
+    set_max_stack( stacks >=1 ? stacks : 1 );
   }
 
   void expire_override( int expiration_stacks, timespan_t remaining_duration ) override
@@ -757,6 +768,37 @@ struct boon_of_the_ascended_t final : public priest_buff_t<buff_t>
     {
       priest().action.ascended_eruption->trigger_eruption( expiration_stacks );
     }
+  }
+};
+
+struct surrender_to_madness_debuff_t final : public priest_buff_t<buff_t>
+{
+  surrender_to_madness_debuff_t( priest_td_t& actor_pair )
+    : base_t( actor_pair, "surrender_to_madness_death_check", actor_pair.priest().talents.surrender_to_madness )
+  {
+  }
+
+  void expire_override( int expiration_stacks, timespan_t remaining_duration ) override
+  {
+    // Fake-detect target demise by checking if buff was expired early
+    if ( remaining_duration > timespan_t::zero() )
+    {
+      priest().buffs.surrender_to_madness->expire();
+    }
+    else
+    {
+      make_event( sim, [this]() {
+        if ( sim->log )
+        {
+          sim->out_log.printf( "%s %s: Surrender to Madness kills you. You die. Horribly.", priest().name(), name() );
+        }
+        priest().demise();
+        priest().arise();
+        priest().buffs.surrender_to_madness_death->trigger();
+      } );
+    }
+
+    buff_t::expire_override( expiration_stacks, remaining_duration );
   }
 };
 
@@ -938,8 +980,9 @@ priest_td_t::priest_td_t( player_t* target, priest_t& p ) : actor_target_data_t(
   dots.devouring_plague   = target->get_dot( "devouring_plague", &p );
   dots.unholy_transfusion = target->get_dot( "unholy_transfusion", &p );
 
-  buffs.schism                   = make_buff( *this, "schism", p.talents.schism );
-  buffs.death_and_madness_debuff = make_buff<buffs::death_and_madness_debuff_t>( *this );
+  buffs.schism                      = make_buff( *this, "schism", p.talents.schism );
+  buffs.death_and_madness_debuff    = make_buff<buffs::death_and_madness_debuff_t>( *this );
+  buffs.surrender_to_madness_debuff = make_buff<buffs::surrender_to_madness_debuff_t>( *this );
 
   target->callbacks_on_demise.emplace_back( [ this ]( player_t* ) { target_demise(); } );
 }
@@ -1016,7 +1059,6 @@ void priest_t::create_gains()
   gains.insanity_drain                         = get_gain( "Insanity Drained by Voidform" );
   gains.insanity_pet                           = get_gain( "Insanity Gained from Shadowfiend" );
   gains.insanity_surrender_to_madness          = get_gain( "Insanity Gained from Surrender to Madness" );
-  gains.insanity_wasted_surrendered_to_madness = get_gain( "Insanity Wasted from Surrendered to Madness" );
   gains.vampiric_touch_health                  = get_gain( "Health from Vampiric Touch Ticks" );
   gains.insanity_lucid_dreams                  = get_gain( "Insanity Gained from Lucid Dreams" );
   gains.insanity_memory_of_lucid_dreams        = get_gain( "Insanity Gained from Memory of Lucid Dreams" );
@@ -1143,6 +1185,21 @@ double priest_t::composite_melee_haste() const
     h /= 1.0 + buffs.power_infusion->data().effectN( 1 ).percent();
 
   return h;
+}
+
+double priest_t::composite_spell_crit_chance() const
+{
+  double sc = player_t::composite_spell_crit_chance();
+
+  if ( talents.ancient_madness->ok() )
+  {
+    if ( buffs.ancient_madness->check() )
+    {
+      sim->print_debug( "Ancient Madness - adjusting crit increase to {}", buffs.ancient_madness->check_stack_value() );
+      sc += buffs.ancient_madness->check_stack_value();
+    }
+  }
+  return sc;
 }
 
 double priest_t::composite_player_pet_damage_multiplier( const action_state_t* s ) const
@@ -1444,6 +1501,7 @@ void priest_t::init_spells()
   legendary.painbreaker_psalm        = find_runeforge_legendary( "Painbreaker Psalm" );
   legendary.shadowflame_prism        = find_runeforge_legendary( "Shadowflame Prism" );
   legendary.eternal_call_to_the_void = find_runeforge_legendary( "Eternal Call to the Void" );
+  legendary.talbadars_stratagem      = find_runeforge_legendary( "Talbadar's Stratagem" );
 
   // Shadow Conduits
   conduits.dissonant_echoes       = find_conduit_spell( "Dissonant Echoes" );
@@ -1600,26 +1658,9 @@ void priest_t::create_apl_precombat()
     case PRIEST_SHADOW:
     default:
       // Calculate these variables once to reduce sim time
-      precombat->add_action(
-          "variable,name=mind_blast_targets,op=set,value="
-          "floor((4.5+azerite.whispers_of_the_damned.rank)%(1+0.27*azerite.searing_dialogue.rank))" );
-      precombat->add_action(
-          "variable,name=swp_trait_ranks_check,op=set,value="
-          "(1-0.07*azerite.death_throes.rank+0.2*azerite.thought_harvester.rank)"
-          "*(1-0.09*azerite.thought_harvester.rank*azerite.searing_dialogue.rank)" );
-      precombat->add_action(
-          "variable,name=vt_trait_ranks_check,op=set,value="
-          "(1-0.04*azerite.thought_harvester.rank-0.05*azerite.spiteful_apparitions.rank)" );
-      precombat->add_action(
-          "variable,name=vt_mis_trait_ranks_check,op=set,value="
-          "(1-0.07*azerite.death_throes.rank-0.03*azerite.thought_harvester.rank-0.055*azerite.spiteful_apparitions."
-          "rank)"
-          "*(1-0.027*azerite.thought_harvester.rank*azerite.searing_dialogue.rank)" );
-      precombat->add_action( "variable,name=vt_mis_sd_check,op=set,value=1-0.014*azerite.searing_dialogue.rank" );
       precombat->add_action( this, "Shadowform", "if=!buff.shadowform.up" );
       precombat->add_action( "use_item,name=azsharas_font_of_power" );
-      precombat->add_action( this, "Mind Blast", "if=spell_targets.mind_sear<2|azerite.thought_harvester.rank=0" );
-      precombat->add_action( this, "Vampiric Touch" );
+      precombat->add_action( this, "Mind Blast" );
       break;
   }
 }

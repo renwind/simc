@@ -73,6 +73,7 @@ public:
   {
     propagate_const<buff_t*> schism;
     propagate_const<buff_t*> death_and_madness_debuff;
+    propagate_const<buff_t*> surrender_to_madness_debuff;
   } buffs;
 
   priest_t& priest()
@@ -122,11 +123,14 @@ public:
     propagate_const<buff_t*> shadowform_state;  // Dummy buff to track whether player entered Shadowform initially
     propagate_const<buff_t*> shadowy_insight;
     propagate_const<buff_t*> surrender_to_madness;
-    propagate_const<buff_t*> surrendered_to_madness;
+    propagate_const<buff_t*> surrender_to_madness_death;
     propagate_const<buff_t*> vampiric_embrace;
     propagate_const<buff_t*> void_torrent;
     propagate_const<buff_t*> voidform;
     propagate_const<buff_t*> death_and_madness_buff;
+    propagate_const<buff_t*> unfurling_darkness;
+    propagate_const<buff_t*> unfurling_darkness_cd; // Blizzard uses a buff to track the ICD
+    propagate_const<buff_t*> ancient_madness;
 
     // Azerite Powers
     // Shadow
@@ -305,7 +309,6 @@ public:
     propagate_const<gain_t*> insanity_drain;
     propagate_const<gain_t*> insanity_pet;
     propagate_const<gain_t*> insanity_surrender_to_madness;
-    propagate_const<gain_t*> insanity_wasted_surrendered_to_madness;
     propagate_const<gain_t*> insanity_blessing;
     propagate_const<gain_t*> shadowy_insight;
     propagate_const<gain_t*> vampiric_touch_health;
@@ -438,6 +441,7 @@ public:
     item_runeforge_t painbreaker_psalm;
     item_runeforge_t shadowflame_prism;  // TODO: Add 20% damage modifier
     item_runeforge_t eternal_call_to_the_void;
+    item_runeforge_t talbadars_stratagem;
   } legendary;
 
   struct
@@ -493,6 +497,7 @@ public:
   void assess_damage( school_e school, result_amount_type dtype, action_state_t* s ) override;
   double composite_melee_haste() const override;
   double composite_spell_haste() const override;
+  double composite_spell_crit_chance() const override;
   double composite_player_pet_damage_multiplier( const action_state_t* ) const override;
   double composite_player_absorb_multiplier( const action_state_t* s ) const override;
   double composite_player_heal_multiplier( const action_state_t* s ) const override;
@@ -912,15 +917,11 @@ struct fiend_melee_t : public priest_pet_melee_t
       if ( p().o().specialization() == PRIEST_SHADOW )
       {
         double amount = p().insanity_gain();
-        if ( p().o().buffs.surrendered_to_madness->up() )
-        {
-          amount = 0.0;  // generation with debuff is zero N1gh7h4wk 2018/01/26
-        }
         if ( p().o().buffs.surrender_to_madness->up() )
         {
           p().o().resource_gain(
               RESOURCE_INSANITY,
-              ( amount * ( 1.0 + p().o().talents.surrender_to_madness->effectN( 1 ).percent() ) ) - amount,
+              ( amount * ( 1.0 + p().o().talents.surrender_to_madness->effectN( 2 ).percent() ) ) - amount,
               p().o().gains.insanity_surrender_to_madness );
         }
         p().o().insanity.gain( amount, p().gains.fiend, nullptr );
@@ -939,7 +940,6 @@ struct fiend_melee_t : public priest_pet_melee_t
 };
 }  // namespace actions
 }  // namespace fiend
-
 
 struct void_tendril_t final : public priest_pet_t
 {
@@ -985,9 +985,12 @@ struct priest_action_t : public Base
     bool mastery_madness_ta;
   } affected_by;
 
+  double vf_da_multiplier;
+  double vf_ta_multiplier;
+
 public:
   priest_action_t( util::string_view name, priest_t& p, const spell_data_t* s = spell_data_t::nil() )
-    : ab( name, &p, s ), affected_by()
+    : ab( name, &p, s ), affected_by(), vf_da_multiplier( 1 ), vf_ta_multiplier( 1 )
   {
     init_affected_by();
     ab::may_crit          = true;
@@ -998,6 +1001,17 @@ public:
     {
       ab::base_dd_multiplier *= 1.0 + p.talents.sins_of_the_many->effectN( 1 ).percent();
       ab::base_td_multiplier *= 1.0 + p.talents.sins_of_the_many->effectN( 1 ).percent();
+    }
+
+    if ( affected_by.voidform_da )
+    {
+      vf_da_multiplier = 1 + priest().buffs.voidform->data().effectN( 1 ).percent() +
+                         priest().talents.legacy_of_the_void->effectN( 4 ).percent();
+    }
+    if ( affected_by.voidform_ta )
+    {
+      vf_ta_multiplier = 1 + priest().buffs.voidform->data().effectN( 2 ).percent() +
+                         priest().talents.legacy_of_the_void->effectN( 4 ).percent();
     }
   }
 
@@ -1080,39 +1094,30 @@ public:
 
   double action_da_multiplier() const override
   {
-    double m               = ab::action_da_multiplier();
-    double lotv_multiplier = 0.0;
+    double m = ab::action_da_multiplier();
 
-    if ( priest().specialization() == PRIEST_SHADOW )
+    if ( affected_by.mastery_madness_da )
     {
-      if ( affected_by.mastery_madness_da )
-      {
-        m *= 1.0 + priest().cache.mastery_value();
-      }
-      if ( affected_by.voidform_da && priest().buffs.voidform->check() )
-      {
-        double vf_multiplier = priest().buffs.voidform->data().effectN( 1 ).percent();
-        // TODO: add this directly into vf_multiplier after PTR
-        // Grab the Legacy of the Void Damage increase
-        lotv_multiplier = priest().talents.legacy_of_the_void->effectN( 4 ).percent();
-        m *= 1.0 + vf_multiplier + lotv_multiplier;
-      }
-      if ( affected_by.shadowform_da && priest().buffs.shadowform->check() )
-      {
-        m *= 1.0 + priest().buffs.shadowform->data().effectN( 1 ).percent();
-      }
-      if ( affected_by.twist_of_fate_da && priest().buffs.twist_of_fate->check() )
-      {
-        m *= 1.0 + priest().buffs.twist_of_fate->data().effectN( 1 ).percent();
-      }
+      m *= 1.0 + priest().cache.mastery_value();
+    }
+    if ( affected_by.voidform_da && priest().buffs.voidform->check() )
+    {
+      m *= vf_da_multiplier;
+    }
+    if ( affected_by.shadowform_da && priest().buffs.shadowform->check() )
+    {
+      m *= 1.0 + priest().buffs.shadowform->data().effectN( 1 ).percent();
+    }
+    if ( affected_by.twist_of_fate_da && priest().buffs.twist_of_fate->check() )
+    {
+      m *= 1.0 + priest().buffs.twist_of_fate->data().effectN( 1 ).percent();
     }
     return m;
   }
 
   double action_ta_multiplier() const override
   {
-    double m               = ab::action_ta_multiplier();
-    double lotv_multiplier = 0.0;
+    double m = ab::action_ta_multiplier();
 
     if ( affected_by.mastery_madness_ta )
     {
@@ -1120,11 +1125,7 @@ public:
     }
     if ( affected_by.voidform_ta && priest().buffs.voidform->check() )
     {
-      double vf_multiplier = priest().buffs.voidform->data().effectN( 2 ).percent();
-      // TODO: add this directly into vf_multiplier after PTR
-      // Grab the Legacy of the Void Damage increase
-      lotv_multiplier = priest().talents.legacy_of_the_void->effectN( 7 ).percent();
-      m *= 1.0 + vf_multiplier + lotv_multiplier;
+      m *= vf_ta_multiplier;
     }
     if ( affected_by.shadowform_ta && priest().buffs.shadowform->check() )
     {
@@ -1226,6 +1227,19 @@ struct priest_spell_t : public priest_action_t<spell_t>
     }
 
     return base_t::usable_moving();
+  }
+
+  bool ready() override
+  {
+    if ( priest().specialization() == PRIEST_SHADOW && priest().talents.surrender_to_madness->ok() )
+    {
+      if ( priest().buffs.surrender_to_madness_death->check() )
+      {
+        return false;
+      }
+    }
+
+    return action_t::ready();
   }
 
   void consume_resource() override

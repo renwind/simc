@@ -2997,9 +2997,9 @@ void sim_t::do_pause()
 void sim_t::set_error(std::string error)
 {
     util::replace_all( error, "\n", "" );
-    std::cerr << error << "\n";
+    std::cerr << error << std::endl;
 
-    error_list.push_back( error );
+    error_list.push_back( std::move( error ) );
 }
 
 /// merge sims
@@ -4187,21 +4187,21 @@ std::vector<double> sc_timeline_t::build_divisor_timeline( const extended_sample
 void sc_timeline_t::adjust( sim_t& sim )
 {
   // Check if we have divisor timeline cached
-  auto it = sim.divisor_timeline_cache.find( bin_size );
+  auto it = sim.divisor_timeline_cache.find( bin_size_ );
   if ( it == sim.divisor_timeline_cache.end() )
   {
     // If we don't have a cached divisor timeline, build one
-    sim.divisor_timeline_cache[ bin_size ] = build_divisor_timeline( sim.simulation_length, bin_size );
+    sim.divisor_timeline_cache[ bin_size_ ] = build_divisor_timeline( sim.simulation_length, bin_size_ );
   }
 
   // Do the timeline adjustement
-  base_t::adjust( sim.divisor_timeline_cache[ bin_size ] );
+  timeline_t::adjust( sim.divisor_timeline_cache[ bin_size_ ] );
 }
 
 void sc_timeline_t::adjust( const extended_sample_data_t& adjustor )
 {
   // Do the timeline adjustement
-  base_t::adjust( build_divisor_timeline( adjustor, bin_size ) );
+  timeline_t::adjust( build_divisor_timeline( adjustor, bin_size_ ) );
 }
 
 // FIXME!  Move this to util at some point.

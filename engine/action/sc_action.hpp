@@ -544,7 +544,10 @@ public:
   dot_t* find_dot( player_t* target ) const;
 
   bool is_aoe() const
-  { return n_targets() == -1 || n_targets() > 0; }
+  {
+    const int num_targets = n_targets();
+    return num_targets == -1 || num_targets > 0;
+  }
 
   const char* name() const
   { return name_str.c_str(); }
@@ -583,6 +586,14 @@ public:
 
   void apply_affecting_aura(const spell_data_t*);
   void apply_affecting_effect( const spelleffect_data_t& effect );
+
+  action_state_t* get_state( const action_state_t* = nullptr );
+
+private:
+  friend struct action_state_t;
+  void release_state( action_state_t* );
+
+public:
 
   // =======================
   // Const virtual functions
@@ -905,11 +916,6 @@ public:
 
   virtual action_state_t* new_state();
 
-  virtual action_state_t* get_state(const action_state_t* = nullptr);
-private:
-  friend struct action_state_t;
-  virtual void release_state( action_state_t* );
-public:
   virtual void do_schedule_travel( action_state_t*, timespan_t );
 
   virtual void schedule_travel( action_state_t* );
