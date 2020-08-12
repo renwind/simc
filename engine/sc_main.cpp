@@ -278,6 +278,11 @@ int sim_t::main(const std::vector<std::string>& args)
 
 
 		// renwind modified
+		std::ofstream shadow_nga_skill_talbe("f:/shadow_nga_skill_talbe.txt");
+		shadow_nga_skill_talbe << nga_to_skill_table_priest(*dbc, 0);
+		shadow_nga_skill_talbe.close();
+
+
 		std::ofstream element_nga_skill_talbe("f:/element_nga_skill_talbe.txt");
 		element_nga_skill_talbe << nga_to_skill_table(*dbc,0);
 		element_nga_skill_talbe.close();
