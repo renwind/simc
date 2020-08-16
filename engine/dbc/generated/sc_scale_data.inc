@@ -1,4 +1,4 @@
-// Hit points per stamina for level 1 - 120, wow build 9.0.1.35522
+﻿// Hit points per stamina for level 1 - 120, wow build 9.0.1.35522
 static double __hp_per_sta[120] = {
     7,	7,	7,	7,	7,	//    5
     7,	7,	7,	7,	8,	//   10

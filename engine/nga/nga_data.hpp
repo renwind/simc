@@ -10,16 +10,10 @@ struct nga_table_data_format
 	unsigned width;
 };
 
-<<<<<<< HEAD
 static const std::array<nga_table_data_format, 8> __nga_spell_data_format{ {
 	{"", 0},
 	{"技能", 0},
 	{"图标", 0},
-=======
-static const std::array<nga_table_data_format, 7> __nga_spell_data_format{ {
-	{"", 0},
-	{"技能", 0},
->>>>>>> nga/zh_CN
 	{"类型", 0},
 	{"法强系数", 0},
 	{"施法时间", 0},
@@ -39,7 +33,6 @@ static constexpr auto __nga_elemental_common_spellid_map = util::make_static_map
 	{190493, "怒雷"},
 	} );
 
-<<<<<<< HEAD
 static constexpr auto __nga_enhance_common_spellid_map = util::make_static_map<unsigned, util::string_view>({
 	{33757, "风怒武器"},
 	{17364, "风暴打击"},
@@ -59,8 +52,6 @@ static constexpr auto __nga_enhance_common_spellid_map = util::make_static_map<u
 	});
 
 
-=======
->>>>>>> nga/zh_CN
 static constexpr auto __nga_force_spellid_map = util::make_static_map<unsigned, util::string_view>({
 	{324386, "暮钟图腾(格里恩)"},
 	{324520, "暮钟图腾伤害"},
@@ -148,10 +139,9 @@ std::string nga_color(std::string value, eNgaColor c);
 
 std::string nga_align_center(std::string value);
 
-<<<<<<< HEAD
 std::string nga_to_skill_table(const dbc_t& dbc, unsigned shaman_type);
-std::string nga_to_conduit_table(const dbc_t& dbc);
-std::string nga_to_lengendary_table(const dbc_t& dbc)
-=======
-std::string to_nga_table(const dbc_t& dbc);
->>>>>>> nga/zh_CN
+std::string nga_to_conduit_table_shaman(const dbc_t& dbc);
+std::string nga_to_conduit_table_priest(const dbc_t& dbc);
+std::string nga_to_lengendary_table(const dbc_t& dbc, unsigned shaman_type);
+
+std::string nga_to_skill_table_priest(const dbc_t& dbc, unsigned shaman_type);
