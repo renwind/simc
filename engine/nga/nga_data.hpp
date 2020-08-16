@@ -140,7 +140,8 @@ std::string nga_color(std::string value, eNgaColor c);
 std::string nga_align_center(std::string value);
 
 std::string nga_to_skill_table(const dbc_t& dbc, unsigned shaman_type);
-std::string nga_to_conduit_table(const dbc_t& dbc);
+std::string nga_to_conduit_table_shaman(const dbc_t& dbc);
+std::string nga_to_conduit_table_priest(const dbc_t& dbc);
 std::string nga_to_lengendary_table(const dbc_t& dbc, unsigned shaman_type);
 
 std::string nga_to_skill_table_priest(const dbc_t& dbc, unsigned shaman_type);

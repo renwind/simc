@@ -4,6 +4,8 @@
 #include "../dbc/covenant_data.hpp"
 #include "../util/static_map.hpp"
 #include "../interfaces/sc_http.hpp"
+#include "../dbc/dbc.hpp"
+#include "../dbc/active_spells.hpp"
 
 
 const char* nga_school_type_string(school_e school)
@@ -16,7 +18,7 @@ const char* nga_school_type_string(school_e school)
 	case SCHOOL_FIRE:             return "火焰";
 	case SCHOOL_FROST:            return "冰霜";
 	case SCHOOL_FROSTFIRE:        return "frostfire";
-	case SCHOOL_HOLY:             return "holy";
+	case SCHOOL_HOLY:             return "神圣";
 	case SCHOOL_NATURE:           return "自然";
 	case SCHOOL_PHYSICAL:         return "物理";
 	case SCHOOL_SHADOW:           return "暗影";
@@ -56,6 +58,7 @@ const eNgaColor nga_school_type_color(school_e school)
 	case SCHOOL_FIRE:             return nc_red;
 	case SCHOOL_FROST:            return nc_blue;
 	case SCHOOL_SHADOW:           return nc_indigo;
+	case SCHOOL_HOLY:             return nc_deeppink;
 	case SCHOOL_ARCANE:           return nc_purple;
 	case SCHOOL_NATURE:           return nc_green;
 	case SCHOOL_PHYSICAL:         return nc_burlywood;
@@ -162,6 +165,17 @@ std::string nga_align_center(std::string value)
 	return s.str();
 }
 
+std::string nga_table_title(std::string value)
+{
+	std::ostringstream s;
+
+	s << "[b][color=royalblue][size=130%]· ";
+	s << value;
+	s << "：[/size][/color][/b]" << std::endl;
+	s << "[h][/h]" << std::endl;
+
+	return s.str();
+}
 
 
 std::string nga_to_skill_table_row(const dbc_t& dbc, const spell_data_t* spell, unsigned shaman_type, int level, std::string rowspan = "")
@@ -419,7 +433,7 @@ void nga_to_skill_table_talent_priest(std::ostringstream &s, const dbc_t& dbc, u
 			else if (shaman_type == 1)
 				masterT = PRIEST_DISCIPLINE;
 
-			if (talent.spec() == masterT)
+			if (talent.spec() == masterT || talent.id()== 22315)
 			{
 				iTalentCount++;
 				if (talent.col() == 0)
@@ -440,82 +454,108 @@ void nga_to_skill_table_talent_priest(std::ostringstream &s, const dbc_t& dbc, u
 		index++;
 	}
 }
-std::string nga_to_skill_table_priest(const dbc_t& dbc, unsigned shaman_type)
+
+static const std::array<nga_table_data_format, 7> __nga_spell_data_format2{ {
+	{"技能", 0},
+	{"图标", 0},
+	{"类型", 0},
+	{"法强系数", 0},
+	{"施法时间", 0},
+	{"冷却", 0},
+	{"描述", 50},
+} };
+
+
+void __nga_to_talbe(const dbc_t& dbc, unsigned shaman_type, std::ostringstream &s, std::vector< const spell_data_t *> &spell_vector, std::string title)
 {
-	std::ostringstream s;
+	s << std::endl << std::endl;
+	s << "[quote]" << std::endl;
+	s << nga_table_title(title);
+
 	s << "[table]" << std::endl;
 
-	// first row
 	std::ostringstream sr;
-	util::span<const nga_table_data_format> ngaData = ::util::make_span(__nga_spell_data_format);
+	util::span<const nga_table_data_format> ngaData = ::util::make_span(__nga_spell_data_format2);
 	for (auto data : ngaData)
 	{
 		sr << nga_td(nga_align_center(nga_b(data.value)), data.width);
 	}
 	s << nga_tr(sr.str());
 
+	for (const spell_data_t *spell : spell_vector)
+	{
+		s << nga_to_skill_table_row(dbc, spell, shaman_type, MAX_LEVEL);
+	}
+
+	s << "[/table]" << std::endl;
+	s << "[/quote]" << std::endl << std::endl;
+}
+std::string nga_to_skill_table_priest(const dbc_t& dbc, unsigned shaman_type)
+{
 	//int common_spell_number = 0;
+	std::vector< const spell_data_t *> shadow_spell_vector;
+	std::vector< const spell_data_t *> holy_spell_vector;
+	std::vector< const spell_data_t *> discipline_spell_vector;
 	std::vector< const spell_data_t *> common_spell_vector;
 	std::vector< const spell_data_t *> force_spell_vector;
+
+	// common priest spell
+	for (const auto &class_spell : active_class_spell_t::data(false))
+	{
+		if (class_spell.class_id == util::class_id(player_e::PRIEST))
+		{
+			if (class_spell.spec_id == 0)
+			{
+				const spell_data_t *spell = spell_data_t::find(class_spell.spell_id);
+				if (spell != spell_data_t::nil())
+					common_spell_vector.push_back(spell);
+			}
+		}
+	}
+
+	// master priest spell
 	for (const spell_data_t &spell : spell_data_t::data())
 	{
 		auto priestMask = util::class_id_mask(player_e::PRIEST);
-		if(spell.class_mask() && ((spell.class_mask() | priestMask) == priestMask))
-		//if (spell.class_mask() && spell.is_class(player_e::PRIEST))
+		if (spell.class_mask() && ((spell.class_mask() | priestMask) == priestMask))
 		{
-			common_spell_vector.push_back(&spell);
+			if (dbc.spec_by_spell(spell.id()) == PRIEST_SHADOW)
+				shadow_spell_vector.push_back(&spell);
+			else if (dbc.spec_by_spell(spell.id()) == PRIEST_HOLY)
+				holy_spell_vector.push_back(&spell);
+			else if (dbc.spec_by_spell(spell.id()) == PRIEST_DISCIPLINE)
+				discipline_spell_vector.push_back(&spell);
 		}
-
-		//if (spell.class_mask() && spell.is_class(player_e::PRIEST))
-		//{
-		//	if (shaman_type == 0)
-		//	{
-		//		if (__nga_elemental_common_spellid_map.find(spell.id()) != __nga_elemental_common_spellid_map.end())
-		//			common_spell_vector.push_back(&spell);
-		//	}
-		//	else if (shaman_type == 1)
-		//	{
-		//		if (__nga_enhance_common_spellid_map.find(spell.id()) != __nga_enhance_common_spellid_map.end())
-		//			common_spell_vector.push_back(&spell);
-		//	}
-		//	if (__nga_force_spellid_map.find(spell.id()) != __nga_force_spellid_map.end())
-		//		force_spell_vector.push_back(&spell);
-		//}
 	}
 
-	//std::string row_span = "[td rowspan=" + nga_number((double)common_spell_vector.size()) + "]通用[/td]";
-	int iRowSpanIndex = 0;
-	int iSpellIndex = 0;
-	bool bFirstLine = true;
-	for (const spell_data_t *spell : common_spell_vector)
+	std::ostringstream s;
+
+	__nga_to_talbe(dbc, shaman_type, s, common_spell_vector, "通用");
+	//__nga_to_talbe(dbc, shaman_type, s, shadow_spell_vector, "暗影");
+	//__nga_to_talbe(dbc, shaman_type, s, holy_spell_vector, "神圣");
+	__nga_to_talbe(dbc, shaman_type, s, discipline_spell_vector, "戒律");
+
+	// talent table
 	{
-		iRowSpanIndex = iSpellIndex / 20;
-		if (iRowSpanIndex == 0)
+		s << std::endl << std::endl;
+		s << "[quote]" << std::endl;
+		s << nga_table_title("天赋");
+		s << "[table]" << std::endl;
+		std::ostringstream sr;
+		util::span<const nga_table_data_format> ngaData = ::util::make_span(__nga_spell_data_format);
+		for (auto data : ngaData)
 		{
-			std::string row_span = "[td rowspan=" + nga_number(20.0) + "]通用" + std::to_string(iRowSpanIndex) + "[/td]";
-			s << nga_to_skill_table_row(dbc, spell, shaman_type, MAX_LEVEL, row_span);
+			sr << nga_td(nga_align_center(nga_b(data.value)), data.width);
 		}
-		else
-			s << nga_to_skill_table_row(dbc, spell, shaman_type, MAX_LEVEL);
-		iSpellIndex++;
+		s << nga_tr(sr.str());
+		nga_to_skill_table_talent_priest(s, dbc, shaman_type, PRIEST);
+		s << "[/table]" << std::endl;
+		s << "[/quote]" << std::endl;
 	}
 
-	//row_span = "[td rowspan=" + nga_number((double)force_spell_vector.size()) + "]盟约[/td]";
-	//bFirstLine = true;
-	//for (const spell_data_t *spell : force_spell_vector)
-	//{
-	//	if (bFirstLine)
-	//	{
-	//		s << nga_to_skill_table_row(dbc, spell, shaman_type, MAX_LEVEL, row_span);
-	//		bFirstLine = false;
-	//	}
-	//	else
-	//		s << nga_to_skill_table_row(dbc, spell, shaman_type, MAX_LEVEL);
-	//}
 
-	nga_to_skill_table_talent_priest(s, dbc, shaman_type, PRIEST);
+	s << nga_to_conduit_table_priest(dbc);
 
-	s << "[/table]" << std::endl;
 
 	return s.str();
 }
@@ -663,7 +703,7 @@ void nga_to_conduit_talbe_row(const dbc_t& dbc, std::vector< const spell_data_t 
 
 
 
-std::string nga_to_conduit_table(const dbc_t& dbc)
+std::string nga_to_conduit_table_shaman(const dbc_t& dbc)
 {
 	std::ostringstream s;
 	s << "[table]" << std::endl;
@@ -736,6 +776,81 @@ std::string nga_to_conduit_table(const dbc_t& dbc)
 	return s.str();
 }
 
+std::string nga_to_conduit_table_priest(const dbc_t& dbc)
+{
+	std::ostringstream s;
+	s << std::endl << std::endl;
+	s << "[quote]" << std::endl;
+	s << "[table]" << std::endl;
+
+	// first row
+	std::ostringstream sr;
+	util::span<const nga_table_data_format> ngaData = ::util::make_span(__nga_conduit_data_format);
+	for (auto data : ngaData)
+	{
+		sr << nga_td(nga_align_center(nga_b(data.value)), data.width);
+	}
+	s << nga_tr(sr.str());
+
+	//int common_spell_number = 0;
+	std::vector< const spell_data_t *> elemental_vector;
+	std::vector< const spell_data_t *> enchance_vector;
+	std::vector< const spell_data_t *> restore_vector;
+	std::vector< const spell_data_t *> force_vector;
+	std::vector< const spell_data_t *> common_vector;
+	for (const spell_data_t &spell : spell_data_t::data())
+	{
+		if (spell.class_family() == 6)
+		{
+			const auto& conduit = conduit_entry_t::find_by_spellid(spell.id(), dbc.ptr);
+			if (!(conduit.spell_id && conduit.spell_id == spell.id()))
+			{
+				continue;
+			}
+
+			bool bMasterConduit = false;
+			for (auto conduitType : __nga_master_conduit_id)
+			{
+				if (conduitType.conduit_spell_id == spell.id())
+				{
+					bMasterConduit = true;
+					switch (conduitType.type)
+					{
+					case e_elemental:
+						elemental_vector.push_back(&spell);
+						break;
+					case e_enhance:
+						enchance_vector.push_back(&spell);
+						break;
+					case e_restore:
+						restore_vector.push_back(&spell);
+						break;
+					case e_force:
+						force_vector.push_back(&spell);
+						break;
+					}
+				}
+			}
+
+			if (bMasterConduit == false)
+			{
+				common_vector.push_back(&spell);
+			}
+		}
+	}
+
+	//nga_to_conduit_talbe_row(dbc, elemental_vector, s, "元素");
+	//nga_to_conduit_talbe_row(dbc, enchance_vector, s, "增强");
+	//nga_to_conduit_talbe_row(dbc, restore_vector, s, "恢复");
+	//nga_to_conduit_talbe_row(dbc, force_vector, s, "盟约");
+	nga_to_conduit_talbe_row(dbc, common_vector, s, "通用");
+
+
+	s << "[/table]" << std::endl;
+	s << "[/quote]" << std::endl;
+
+	return s.str();
+}
 
 
 

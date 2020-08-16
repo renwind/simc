@@ -277,31 +277,36 @@ int sim_t::main(const std::vector<std::string>& args)
 		print_version_info(*dbc);
 
 
+
+
 		// renwind modified
+		//std::ofstream element_nga_conduit_talbe("f:/element_nga_conduit_talbe.txt");
+		//element_nga_conduit_talbe << nga_to_conduit_table(*dbc);
+		//element_nga_conduit_talbe.close();
+
+
+
 		std::ofstream shadow_nga_skill_talbe("f:/shadow_nga_skill_talbe.txt");
 		shadow_nga_skill_talbe << nga_to_skill_table_priest(*dbc, 0);
 		shadow_nga_skill_talbe.close();
 
 
-		std::ofstream element_nga_skill_talbe("f:/element_nga_skill_talbe.txt");
-		element_nga_skill_talbe << nga_to_skill_table(*dbc,0);
-		element_nga_skill_talbe.close();
+		//std::ofstream element_nga_skill_talbe("f:/element_nga_skill_talbe.txt");
+		//element_nga_skill_talbe << nga_to_skill_table(*dbc,0);
+		//element_nga_skill_talbe.close();
 
-		std::ofstream enhance_nga_skill_talbe("f:/enhance_nga_skill_talbe.txt");
-		enhance_nga_skill_talbe << nga_to_skill_table(*dbc,1);
-		enhance_nga_skill_talbe.close();
+		//std::ofstream enhance_nga_skill_talbe("f:/enhance_nga_skill_talbe.txt");
+		//enhance_nga_skill_talbe << nga_to_skill_table(*dbc,1);
+		//enhance_nga_skill_talbe.close();
 
-		std::ofstream element_nga_legendary_talbe("f:/element_nga_to_lengendary_table.txt");
-		element_nga_legendary_talbe << nga_to_lengendary_table(*dbc, 0);
-		element_nga_legendary_talbe.close();
-		
-		std::ofstream enhance_nga_legendary_talbe("f:/enhance_nga_to_lengendary_table.txt");
-		enhance_nga_legendary_talbe << nga_to_lengendary_table(*dbc, 1);
-		enhance_nga_legendary_talbe.close();
+		//std::ofstream element_nga_legendary_talbe("f:/element_nga_to_lengendary_table.txt");
+		//element_nga_legendary_talbe << nga_to_lengendary_table(*dbc, 0);
+		//element_nga_legendary_talbe.close();
+		//
+		//std::ofstream enhance_nga_legendary_talbe("f:/enhance_nga_to_lengendary_table.txt");
+		//enhance_nga_legendary_talbe << nga_to_lengendary_table(*dbc, 1);
+		//enhance_nga_legendary_talbe.close();
 
-		//std::ofstream element_nga_conduit_talbe("f:/element_nga_conduit_talbe.txt");
-		//element_nga_conduit_talbe << nga_to_conduit_table(*dbc);
-		//element_nga_conduit_talbe.close();
 	
 
 
@@ -333,7 +338,7 @@ int sim_t::main(const std::vector<std::string>& args)
 		std::ofstream common_out("f:/common_spell.txt");
 		for (const spell_data_t &spell : spell_data_t::data())
 		{
-			//spell_out << spell_info::to_str(*dbc, &spell, MAX_LEVEL);
+			spell_out << spell_info::to_str(*dbc, &spell, MAX_LEVEL);
 
 			const auto& conduit = conduit_entry_t::find_by_spellid(spell.id(), dbc->ptr);
 
