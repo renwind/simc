@@ -287,8 +287,12 @@ int sim_t::main(const std::vector<std::string>& args)
 
 
 		std::ofstream shadow_nga_skill_talbe("f:/shadow_nga_skill_talbe.txt");
-		shadow_nga_skill_talbe << nga_to_skill_table_priest(*dbc, 0);
+		shadow_nga_skill_talbe << nga_to_skill_table_priest(*dbc, 0, true);
 		shadow_nga_skill_talbe.close();
+
+		std::ofstream discipline_nga_skill_talbe("f:/discipline_nga_skill_talbe.txt");
+		discipline_nga_skill_talbe << nga_to_skill_table_priest(*dbc, 1, true);
+		discipline_nga_skill_talbe.close();
 
 
 		//std::ofstream element_nga_skill_talbe("f:/element_nga_skill_talbe.txt");
