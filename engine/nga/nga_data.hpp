@@ -142,6 +142,8 @@ std::string nga_align_center(std::string value);
 std::string nga_to_skill_table(const dbc_t& dbc, unsigned shaman_type);
 std::string nga_to_conduit_table_shaman(const dbc_t& dbc);
 std::string nga_to_conduit_table_priest(const dbc_t& dbc);
+std::string nga_to_conduit_table_common(const dbc_t& dbc, unsigned classFamily);
 std::string nga_to_lengendary_table(const dbc_t& dbc, unsigned shaman_type);
 
 std::string nga_to_skill_table_priest(const dbc_t& dbc, unsigned shaman_type, bool includeResourceRow = false);
+std::string nga_to_skill_table_dk(const dbc_t& dbc, unsigned shaman_type, bool includeResourceRow = false);

@@ -285,6 +285,10 @@ int sim_t::main(const std::vector<std::string>& args)
 		//element_nga_conduit_talbe.close();
 
 
+		std::ofstream frost_nga_skill_talbe("f:/frostdk_nga_skill_talbe.txt");
+		frost_nga_skill_talbe << nga_to_skill_table_dk(*dbc, 0, true);
+		frost_nga_skill_talbe.close();
+		
 
 		std::ofstream shadow_nga_skill_talbe("f:/shadow_nga_skill_talbe.txt");
 		shadow_nga_skill_talbe << nga_to_skill_table_priest(*dbc, 0, true);
