@@ -1231,8 +1231,8 @@ double action_t::calculate_direct_amount( action_state_t* state ) const
   amount *= composite_aoe_multiplier( state );
 
   // Spell goes over the maximum number of AOE targets - ignore for enemies
-  if ( !state->action->split_aoe_damage && state->n_targets > static_cast<size_t>( sim->max_aoe_enemies ) &&
-       !state->action->player->is_enemy() )
+  if ( !state->action->split_aoe_damage && !state->action->reduced_aoe_damage &&
+       state->n_targets > static_cast<size_t>( sim->max_aoe_enemies ) && !state->action->player->is_enemy() )
     amount *= sim->max_aoe_enemies / static_cast<double>( state->n_targets );
 
   // Record initial amount to state
@@ -1561,7 +1561,7 @@ void action_t::execute()
       // for aoe spells.
       else
       {
-        snapshot_internal( s, snapshot_flags & STATE_TARGET, amount_type( s ) );
+        snapshot_internal( s, snapshot_flags & STATE_TARGET, pre_execute_state->result_type );
       }
       s->result       = calculate_result( s );
       s->block_result = calculate_block_result( s );
@@ -2343,6 +2343,9 @@ void action_t::init()
   {
     snapshot_flags |= STATE_MUL_PET;
   }
+
+  if ( data().flags( spell_attribute::SX_DISABLE_PLAYER_MULT ) )
+    snapshot_flags &= ~( STATE_MUL_TA | STATE_MUL_DA | STATE_MUL_PERSISTENT | STATE_VERSATILITY );
 
   if ( school == SCHOOL_PHYSICAL )
     snapshot_flags |= STATE_TGT_ARMOR;
@@ -4714,6 +4717,8 @@ void action_t::apply_affecting_effect( const spelleffect_data_t& effect )
 
           case P_COOLDOWN:
             cooldown->duration += effect.time_value();
+            if ( cooldown->duration < timespan_t::zero() )
+              cooldown->duration = timespan_t::zero();
             sim->print_debug( "{} cooldown duration increase by {} to {}", *this, effect.time_value(),
                               cooldown->duration );
             break;
@@ -4749,7 +4754,7 @@ void action_t::apply_affecting_effect( const spelleffect_data_t& effect )
 
           case P_COOLDOWN:
             base_recharge_multiplier *= 1 + effect.percent();
-            if ( base_recharge_multiplier == 0)
+            if ( base_recharge_multiplier <= 0 )
                 cooldown->duration = timespan_t::zero();
             sim->print_debug( "{} cooldown recharge multiplier modified by {}%", *this, effect.base_value() );
             break;
@@ -4765,6 +4770,11 @@ void action_t::apply_affecting_effect( const spelleffect_data_t& effect )
             sim->print_debug( "{} base_td_multiplier modified by {}%", *this, effect.base_value() );
             break;
 
+          case P_CRIT_DAMAGE:
+            crit_bonus_multiplier *= 1 + effect.percent();
+            sim->print_debug( "{} critical damage bonus multiplier modified by {}%", *this, effect.base_value() );
+            break;
+
           default:
             break;
         }
@@ -4778,6 +4788,13 @@ void action_t::apply_affecting_effect( const spelleffect_data_t& effect )
   {
     switch ( effect.subtype() )
     {
+      case A_MODIFY_CATEGORY_COOLDOWN:  // Modify Cooldown Time
+        cooldown->duration += effect.time_value();
+        if ( cooldown->duration < timespan_t::zero() )
+          cooldown->duration = timespan_t::zero();
+        sim->print_debug( "{} cooldown duration modified by {}", *this, effect.time_value() );
+        break;
+
       case A_411:  // Modify Cooldown Charges
         cooldown->charges += as<int>( effect.base_value() );
         sim->print_debug( "{} cooldown charges modified by {}", *this, as<int>( effect.base_value() ) );
@@ -4790,7 +4807,9 @@ void action_t::apply_affecting_effect( const spelleffect_data_t& effect )
 
       case A_453:  // Modify Recharge Time
         cooldown->duration += effect.time_value();
-        sim->print_debug( "{} cooldown duration modified by {}", *this, effect.time_value() );
+        if ( cooldown->duration < timespan_t::zero() )
+          cooldown->duration = timespan_t::zero();
+        sim->print_debug( "{} cooldown recharge time modified by {}", *this, effect.time_value() );
         break;
 
       case A_454:  // Modify Recharge Time%
@@ -4811,6 +4830,8 @@ void action_t::apply_affecting_effect( const spelleffect_data_t& effect )
         {
           case P_GCD:
             trigger_gcd *= ( 100 + effect.base_value() ) / 100.0;
+            if ( trigger_gcd < timespan_t::zero() )
+              trigger_gcd = timespan_t::zero();
             sim->print_debug( "{} trigger_gcd modified by {}% to {}", *this, effect.base_value(), trigger_gcd );
             break;
 
@@ -4838,4 +4859,30 @@ void action_t::apply_affecting_effect( const spelleffect_data_t& effect )
         break;
     }
   }
+}
+
+void action_t::apply_affecting_conduit( const conduit_data_t& conduit, int effect_num )
+{
+  assert( effect_num == -1 || effect_num > 0 );
+
+  if ( !conduit.ok() )
+    return;
+
+  for ( size_t i = 1; i <= conduit->effect_count(); i++ )
+  {
+    if ( effect_num == -1 || as<size_t>( effect_num ) == i )
+      apply_affecting_conduit_effect( conduit, i );
+    else
+      apply_affecting_effect( conduit->effectN( i ) );
+  }
+}
+
+void action_t::apply_affecting_conduit_effect( const conduit_data_t& conduit, size_t effect_num )
+{
+  if ( !conduit.ok() )
+    return;
+
+  spelleffect_data_t effect = conduit->effectN( effect_num );
+  effect._base_value = conduit.value();
+  apply_affecting_effect( effect );
 }

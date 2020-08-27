@@ -21,6 +21,7 @@
 #include "player_stat_cache.hpp"
 #include "scaling_metric_data.hpp"
 #include "util/cache.hpp"
+#include "dbc/item_database.hpp"
 #include "assessor.hpp"
 #include <map>
 #include <set>
@@ -108,7 +109,7 @@ public:
 
 struct player_t : public actor_t
 {
-  static const int default_level = 120;
+  static const int default_level = 60;
 
   // static values
   player_e type;
@@ -169,6 +170,7 @@ struct player_t : public actor_t
 
   // Data access
   std::unique_ptr<dbc_t> dbc;
+  const dbc_override_t*  dbc_override;
 
   // Option Parsing
   std::vector<std::unique_ptr<option_t>> options;
@@ -200,7 +202,7 @@ struct player_t : public actor_t
     gear_stats_t stats;
 
     double spell_power_per_intellect, spell_power_per_attack_power, spell_crit_per_intellect;
-    double attack_power_per_strength, attack_power_per_agility, attack_crit_per_agility;
+    double attack_power_per_strength, attack_power_per_agility, attack_crit_per_agility, attack_power_per_spell_power;
     double dodge_per_agility, parry_per_strength;
     double health_per_stamina;
     std::array<double, SCHOOL_MAX> resource_reduction;
@@ -508,11 +510,6 @@ struct player_t : public actor_t
     buff_t* delirious_frenzy; // Dream's End 1H STR axe attack speed buff
     buff_t* bioelectric_charge; // Diver's Folly 1H AGI axe buff to store damage
     buff_t* razor_coral; // Ashvane's Razor Coral trinket crit rating buff
-
-    //8.3 buffs
-    buff_t* strikethrough; // Corruption effect that increases crit damage/healing
-    buff_t* flash_of_insight;  // Corruption effect that increases int
-    buff_t* obsidian_destruction; // Corruption effect that increases armor
   } buffs;
 
   struct debuffs_t
@@ -839,6 +836,22 @@ public:
 
   virtual double resource_regen_per_second( resource_e ) const;
 
+  double apply_combat_rating_dr( rating_e rating, double value ) const
+  {
+    switch ( rating )
+    {
+      case RATING_LEECH:
+      case RATING_SPEED:
+      case RATING_AVOIDANCE:
+        return item_database::curve_point_value( *dbc, DIMINISHING_RETURN_TERTIARY_CR_CURVE, value * 100.0 ) / 100.0;
+      case RATING_MASTERY:
+        return item_database::curve_point_value( *dbc, DIMINISHING_RETURN_SECONDARY_CR_CURVE, value );
+      default:
+        // Note, curve uses %-based values, not values divided by 100
+        return item_database::curve_point_value( *dbc, DIMINISHING_RETURN_SECONDARY_CR_CURVE, value * 100.0 ) / 100.0;
+    }
+  }
+
   virtual double composite_melee_haste() const;
   virtual double composite_melee_speed() const;
   virtual double composite_melee_attack_power() const;
@@ -973,7 +986,7 @@ public:
   virtual void   regen( timespan_t periodicity = timespan_t::from_seconds( 0.25 ) );
   virtual double resource_gain( resource_e resource_type, double amount, gain_t* g = nullptr, action_t* a = nullptr );
   virtual double resource_loss( resource_e resource_type, double amount, gain_t* g = nullptr, action_t* a = nullptr );
-  virtual void   recalculate_resource_max( resource_e resource_type );
+  virtual void   recalculate_resource_max( resource_e resource_type, gain_t* g = nullptr );
   virtual bool   resource_available( resource_e resource_type, double cost ) const;
   virtual resource_e primary_resource() const
   { return RESOURCE_NONE; }
