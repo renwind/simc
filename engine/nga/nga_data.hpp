@@ -147,3 +147,5 @@ std::string nga_to_lengendary_table(const dbc_t& dbc, unsigned shaman_type);
 
 std::string nga_to_skill_table_priest(const dbc_t& dbc, unsigned shaman_type, bool includeResourceRow = false);
 std::string nga_to_skill_table_dk(const dbc_t& dbc, unsigned shaman_type, bool includeResourceRow = false);
+std::string nga_to_skill_table_shaman(const dbc_t& dbc, unsigned shaman_type, bool includeResourceRow = false);
+std::string nga_to_skill_table_druid(const dbc_t& dbc, unsigned shaman_type, bool includeResourceRow = false);

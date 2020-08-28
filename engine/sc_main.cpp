@@ -285,31 +285,32 @@ int sim_t::main(const std::vector<std::string>& args)
 		//element_nga_conduit_talbe.close();
 
 
-		std::ofstream frost_nga_skill_talbe("f:/frostdk_nga_skill_talbe.txt");
-		frost_nga_skill_talbe << nga_to_skill_table_dk(*dbc, 0, true);
-		frost_nga_skill_talbe.close();
-		
+		//std::ofstream frost_nga_skill_talbe("f:/frostdk_nga_skill_talbe.txt");
+		//frost_nga_skill_talbe << nga_to_skill_table_dk(*dbc, 0, true);
+		//frost_nga_skill_talbe.close();
+		//
 
-		std::ofstream shadow_nga_skill_talbe("f:/shadow_nga_skill_talbe.txt");
-		shadow_nga_skill_talbe << nga_to_skill_table_priest(*dbc, 0, true);
-		shadow_nga_skill_talbe.close();
+		//std::ofstream shadow_nga_skill_talbe("f:/shadow_nga_skill_talbe.txt");
+		//shadow_nga_skill_talbe << nga_to_skill_table_priest(*dbc, 0, true);
+		//shadow_nga_skill_talbe.close();
 
-		std::ofstream discipline_nga_skill_talbe("f:/discipline_nga_skill_talbe.txt");
-		discipline_nga_skill_talbe << nga_to_skill_table_priest(*dbc, 1, true);
-		discipline_nga_skill_talbe.close();
+		//std::ofstream discipline_nga_skill_talbe("f:/discipline_nga_skill_talbe.txt");
+		//discipline_nga_skill_talbe << nga_to_skill_table_priest(*dbc, 1, true);
+		//discipline_nga_skill_talbe.close();
 
 
-		//std::ofstream element_nga_skill_talbe("f:/element_nga_skill_talbe.txt");
+		std::ofstream element_nga_skill_talbe("f:/element_nga_skill_talbe.txt");
 		//element_nga_skill_talbe << nga_to_skill_table(*dbc,0);
-		//element_nga_skill_talbe.close();
+		element_nga_skill_talbe << nga_to_skill_table_shaman(*dbc, 0, true);		
+		element_nga_skill_talbe.close();
 
 		//std::ofstream enhance_nga_skill_talbe("f:/enhance_nga_skill_talbe.txt");
 		//enhance_nga_skill_talbe << nga_to_skill_table(*dbc,1);
 		//enhance_nga_skill_talbe.close();
 
-		//std::ofstream element_nga_legendary_talbe("f:/element_nga_to_lengendary_table.txt");
-		//element_nga_legendary_talbe << nga_to_lengendary_table(*dbc, 0);
-		//element_nga_legendary_talbe.close();
+		std::ofstream element_nga_legendary_talbe("f:/element_nga_to_lengendary_table.txt");
+		element_nga_legendary_talbe << nga_to_lengendary_table(*dbc, 0);
+		element_nga_legendary_talbe.close();
 		//
 		//std::ofstream enhance_nga_legendary_talbe("f:/enhance_nga_to_lengendary_table.txt");
 		//enhance_nga_legendary_talbe << nga_to_lengendary_table(*dbc, 1);
