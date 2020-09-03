@@ -285,10 +285,10 @@ int sim_t::main(const std::vector<std::string>& args)
 		//element_nga_conduit_talbe.close();
 
 
-		//std::ofstream frost_nga_skill_talbe("f:/frostdk_nga_skill_talbe.txt");
-		//frost_nga_skill_talbe << nga_to_skill_table_dk(*dbc, 0, true);
-		//frost_nga_skill_talbe.close();
-		//
+		std::ofstream frost_nga_skill_talbe("f:/frostdk_nga_skill_talbe.txt");
+		frost_nga_skill_talbe << nga_to_skill_table_dk(*dbc, 0, true);
+		frost_nga_skill_talbe.close();
+		
 
 		//std::ofstream shadow_nga_skill_talbe("f:/shadow_nga_skill_talbe.txt");
 		//shadow_nga_skill_talbe << nga_to_skill_table_priest(*dbc, 0, true);
@@ -298,6 +298,10 @@ int sim_t::main(const std::vector<std::string>& args)
 		//discipline_nga_skill_talbe << nga_to_skill_table_priest(*dbc, 1, true);
 		//discipline_nga_skill_talbe.close();
 
+
+		std::ofstream balance_nga_skill_talbe("f:/balance_nga_skill_talbe.txt");
+		balance_nga_skill_talbe << nga_to_skill_table_druid(*dbc, 0, true);
+		balance_nga_skill_talbe.close();
 
 		std::ofstream element_nga_skill_talbe("f:/element_nga_skill_talbe.txt");
 		//element_nga_skill_talbe << nga_to_skill_table(*dbc,0);

@@ -831,11 +831,11 @@ std::string nga_to_skill_table_shaman(const dbc_t& dbc, unsigned shaman_type, bo
 }
 
 
-std::string nga_to_skill_table_druid(const dbc_t& dbc, unsigned shaman_type, bool includeResourceRow)
+std::string nga_to_skill_table_druid(const dbc_t& dbc, unsigned spec_type, bool includeResourceRow)
 {
 	//int common_spell_number = 0;
-	std::vector< const spell_data_t *> elemental_spell_vector;
-	std::vector< const spell_data_t *> enhance_spell_vector;
+	std::vector< const spell_data_t *> balance_spell_vector;
+	std::vector< const spell_data_t *> feral_spell_vector;
 	std::vector< const spell_data_t *> restore_spell_vector;
 	std::vector< const spell_data_t *> common_spell_vector;
 	std::vector< const spell_data_t *> force_spell_vector;
@@ -843,7 +843,7 @@ std::string nga_to_skill_table_druid(const dbc_t& dbc, unsigned shaman_type, boo
 	// common priest spell
 	for (const auto &class_spell : active_class_spell_t::data(false))
 	{
-		if (class_spell.class_id == util::class_id(player_e::SHAMAN))
+		if (class_spell.class_id == util::class_id(player_e::DRUID))
 		{
 			if (class_spell.spec_id == 0)
 			{
@@ -857,27 +857,27 @@ std::string nga_to_skill_table_druid(const dbc_t& dbc, unsigned shaman_type, boo
 	// master priest spell
 	for (const spell_data_t &spell : spell_data_t::data())
 	{
-		auto priestMask = util::class_id_mask(player_e::SHAMAN);
+		auto priestMask = util::class_id_mask(player_e::DRUID);
 		if (spell.class_mask() && ((spell.class_mask() | priestMask) == priestMask))
 		{
-			if (dbc.spec_by_spell(spell.id()) == SHAMAN_ELEMENTAL)
-				elemental_spell_vector.push_back(&spell);
-			else if (dbc.spec_by_spell(spell.id()) == SHAMAN_ENHANCEMENT)
-				enhance_spell_vector.push_back(&spell);
-			else if (dbc.spec_by_spell(spell.id()) == SHAMAN_RESTORATION)
+			if (dbc.spec_by_spell(spell.id()) == DRUID_BALANCE)
+				balance_spell_vector.push_back(&spell);
+			else if (dbc.spec_by_spell(spell.id()) == DRUID_FERAL)
+				feral_spell_vector.push_back(&spell);
+			else if (dbc.spec_by_spell(spell.id()) == DRUID_RESTORATION)
 				restore_spell_vector.push_back(&spell);
 		}
 	}
 
 	std::ostringstream s;
 
-	__nga_to_talbe(dbc, shaman_type, s, common_spell_vector, "通用", includeResourceRow);
-	if (shaman_type == 0)
-		__nga_to_talbe(dbc, shaman_type, s, elemental_spell_vector, "元素", includeResourceRow);
-	else if (shaman_type == 1)
-		__nga_to_talbe(dbc, shaman_type, s, enhance_spell_vector, "增强", includeResourceRow);
-	else if (shaman_type == 2)
-		__nga_to_talbe(dbc, shaman_type, s, restore_spell_vector, "恢复", includeResourceRow);
+	__nga_to_talbe(dbc, spec_type, s, common_spell_vector, "通用", includeResourceRow);
+	if (spec_type == 0)
+		__nga_to_talbe(dbc, spec_type, s, balance_spell_vector, "平衡", includeResourceRow);
+	else if (spec_type == 1)
+		__nga_to_talbe(dbc, spec_type, s, feral_spell_vector, "野性", includeResourceRow);
+	else if (spec_type == 2)
+		__nga_to_talbe(dbc, spec_type, s, restore_spell_vector, "恢复", includeResourceRow);
 
 	// talent table
 	{
@@ -893,21 +893,21 @@ std::string nga_to_skill_table_druid(const dbc_t& dbc, unsigned shaman_type, boo
 		}
 		s << nga_tr(sr.str());
 
-		specialization_e spec = SHAMAN_ELEMENTAL;
-		if (shaman_type == 0)
-			spec = SHAMAN_ELEMENTAL;
-		else if (shaman_type == 1)
-			spec = SHAMAN_ENHANCEMENT;
-		else if (shaman_type == 2)
-			spec = SHAMAN_RESTORATION;
+		specialization_e spec = DRUID_BALANCE;
+		if (spec_type == 0)
+			spec = DRUID_BALANCE;
+		else if (spec_type == 1)
+			spec = DRUID_FERAL;
+		else if (spec_type == 2)
+			spec = DRUID_RESTORATION;
 
-		nga_to_skill_table_talent_common(s, dbc, shaman_type, SHAMAN, spec, includeResourceRow);
+		nga_to_skill_table_talent_common(s, dbc, spec_type, DRUID, spec, includeResourceRow);
 		s << "[/table]" << std::endl;
 		s << "[/quote]" << std::endl;
 	}
 
 
-	s << nga_to_conduit_table_common(dbc, 11);
+	s << nga_to_conduit_table_common(dbc, 7);
 
 
 	return s.str();
