@@ -373,13 +373,6 @@ std::unique_ptr<expr_t> create_buff_expression( util::string_view buff_name, uti
         return buff->value();
       } );
   }
-  else if ( type == "stack_value" )
-  {
-    return make_buff_expr( "buff_stack_value",
-      []( buff_t* buff ) {
-        return buff->stack_value();
-      } );
-  }
   else if ( type == "react" )
   {
     struct react_expr_t : public buff_expr_t
@@ -543,7 +536,6 @@ buff_t::buff_t( sim_t* sim, player_t* target, player_t* source, util::string_vie
     uptime_pct(),
     start_intervals(),
     trigger_intervals(),
-    duration_lengths(),
     change_regen_rate( false )
 {
   if ( source )  // Player Buffs
@@ -1169,16 +1161,6 @@ bool buff_t::trigger( action_t* a, int stacks, double value, timespan_t duration
   return trigger( stacks, value, chance, duration );
 }
 
-bool buff_t::trigger( timespan_t duration )
-{
-  return buff_t::trigger( 1, duration );
-}
-
-bool buff_t::trigger( int stacks, timespan_t duration )
-{
-  return buff_t::trigger( stacks, DEFAULT_VALUE(), -1, duration );
-}
-
 bool buff_t::trigger( int stacks, double value, double chance, timespan_t duration )
 {
   if ( _max_stack == 0 || chance == 0 )
@@ -1797,12 +1779,7 @@ void buff_t::expire( timespan_t delay )
     invalidate_cache();
 
   if ( last_start >= timespan_t::zero() )
-  {
-    timespan_t last_duration = sim->current_time() - last_start;
-    iteration_uptime_sum += last_duration;
-    if ( last_duration > 0_ms )
-      duration_lengths.add( last_duration.total_seconds() );
-  }
+    iteration_uptime_sum += sim->current_time() - last_start;
 
   update_stack_uptime_array( sim->current_time(), old_stack );
   last_stack_change = sim->current_time();
@@ -1898,7 +1875,6 @@ void buff_t::merge( const buff_t& other )
 {
   start_intervals.merge( other.start_intervals );
   trigger_intervals.merge( other.trigger_intervals );
-  duration_lengths.merge( other.duration_lengths );
 
   uptime_pct.merge( other.uptime_pct );
   benefit_pct.merge( other.benefit_pct );

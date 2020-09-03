@@ -1119,7 +1119,6 @@ player_t::player_t( sim_t* s, player_e t, util::string_view n, race_e r )
     world_lag_stddev_override( false ),
     cooldown_tolerance_( timespan_t::min() ),
     dbc( new dbc_t(*(s->dbc)) ),
-    dbc_override( sim->dbc_override.get() ),
     talent_points(),
     profession(),
     azerite( nullptr ),
@@ -1330,7 +1329,6 @@ player_t::base_initial_current_t::base_initial_current_t() :
   spell_crit_per_intellect( 0 ),
   attack_power_per_strength( 0 ),
   attack_power_per_agility( 0 ),
-  attack_power_per_spell_power( 0 ),
   attack_crit_per_agility( 0 ),
   dodge_per_agility( 0 ),
   parry_per_strength( 0 ),
@@ -1373,7 +1371,6 @@ void format_to( const player_t::base_initial_current_t& s, fmt::format_context::
   fmt::format_to( out, " spell_crit_per_intellect={}", s.spell_crit_per_intellect );
   fmt::format_to( out, " attack_power_per_strength={}", s.attack_power_per_strength );
   fmt::format_to( out, " attack_power_per_agility={}", s.attack_power_per_agility );
-  fmt::format_to( out, " attack_power_per_spell_power={}", s.attack_power_per_spell_power );
   fmt::format_to( out, " attack_crit_per_agility={}", s.attack_crit_per_agility );
   fmt::format_to( out, " dodge_per_agility={}", s.dodge_per_agility );
   fmt::format_to( out, " parry_per_strength={}", s.parry_per_strength );
@@ -1506,8 +1503,9 @@ void player_t::init_base_stats()
     base.stats.attribute[ STAT_STRENGTH ] += util::floor( racials.heroic_presence->effectN( 1 ).average( this ) );
     base.stats.attribute[ STAT_AGILITY ] += util::floor( racials.heroic_presence->effectN( 2 ).average( this ) );
     base.stats.attribute[ STAT_INTELLECT ] += util::floor( racials.heroic_presence->effectN( 3 ).average( this ) );
-    // Endurance seems to be using ceiling
-    base.stats.attribute[ STAT_STAMINA ] += util::ceil( racials.endurance->effectN( 1 ).average( this ) );
+    // so is endurance. Can't tell if this is floored, ends in 0.055 @ L100. Assuming based on symmetry w/ heroic
+    // pres.
+    base.stats.attribute[ STAT_STAMINA ] += util::floor( racials.endurance->effectN( 1 ).average( this ) );
 
     base.spell_crit_chance        = dbc->spell_crit_base( type, level() );
     base.attack_crit_chance       = dbc->melee_crit_base( type, level() );
@@ -1546,7 +1544,7 @@ void player_t::init_base_stats()
     if ( base.distance < 1 )
       base.distance = 5;
 
-    // Armor Coefficient, based on level (1054 @ 50; 2500 @ 60-63)
+    // Armor Coefficient, based on level (6300 @ 120)
     base.armor_coeff = dbc->armor_mitigation_constant( level() );
     sim->print_debug( "{} base armor coefficient set to {}.", *this, base.armor_coeff );
 
@@ -2368,7 +2366,7 @@ void player_t::override_talent( util::string_view override_str )
       const talent_data_t* t = talent_data_t::find( type, j, i, specialization(), dbc->ptr );
       if ( t && ( t->spell_id() == spell_id ) )
       {
-        if ( true_level < 20 + ( j == 0 ? -1 : j ) * 5 )
+        if ( true_level < std::min( ( j + 1 ) * 15, 100 ) )
         {
           throw std::invalid_argument(fmt::format("talent_override: Override talent '{}' is too high level.\n",
               override_str ));
@@ -3431,7 +3429,6 @@ double player_t::composite_melee_haste() const
   double h;
 
   h = std::max( 0.0, composite_melee_haste_rating() ) / current.rating.attack_haste;
-  h = apply_combat_rating_dr( RATING_MELEE_HASTE, h );
 
   h = 1.0 / ( 1.0 + h );
 
@@ -3486,7 +3483,6 @@ double player_t::composite_melee_attack_power() const
 
   ap += current.attack_power_per_strength * cache.strength();
   ap += current.attack_power_per_agility * cache.agility();
-  ap += std::floor( current.attack_power_per_spell_power * cache.intellect() );
 
   return ap;
 }
@@ -3555,10 +3551,7 @@ double player_t::composite_attack_power_multiplier() const
 
 double player_t::composite_melee_crit_chance() const
 {
-  double ac = current.attack_crit_chance;
-
-  ac += apply_combat_rating_dr( RATING_MELEE_CRIT,
-      composite_melee_crit_rating() / current.rating.attack_crit );
+  double ac = current.attack_crit_chance + composite_melee_crit_rating() / current.rating.attack_crit;
 
   if ( current.attack_crit_per_agility )
     ac += ( cache.agility() / current.attack_crit_per_agility / 100.0 );
@@ -3626,6 +3619,11 @@ double player_t::composite_base_armor_multiplier() const
 double player_t::composite_armor_multiplier() const
 {
   double a = current.armor_multiplier;
+
+  if ( buffs.obsidian_destruction )
+  {
+    a *= 1.0 + buffs.obsidian_destruction -> value();
+  }
 
   return a;
 }
@@ -3771,7 +3769,6 @@ double player_t::composite_spell_haste() const
   double h;
 
   h = std::max( 0.0, composite_spell_haste_rating() ) / current.rating.spell_haste;
-  h = apply_combat_rating_dr( RATING_SPELL_HASTE, h );
 
   h = 1.0 / ( 1.0 + h );
 
@@ -3841,10 +3838,7 @@ double player_t::composite_spell_power_multiplier() const
 
 double player_t::composite_spell_crit_chance() const
 {
-  double sc = current.spell_crit_chance;
-
-  sc += apply_combat_rating_dr( RATING_SPELL_CRIT,
-      composite_spell_crit_rating() / current.rating.spell_crit );
+  double sc = current.spell_crit_chance + composite_spell_crit_rating() / current.rating.spell_crit;
 
   if ( current.spell_crit_per_intellect > 0 )
   {
@@ -3881,9 +3875,7 @@ double player_t::composite_spell_hit() const
 
 double player_t::composite_mastery() const
 {
-  return current.mastery +
-    apply_combat_rating_dr( RATING_MASTERY,
-        composite_mastery_rating() / current.rating.mastery );
+  return current.mastery + composite_mastery_rating() / current.rating.mastery;
 }
 
 double player_t::composite_bonus_armor() const
@@ -3893,8 +3885,7 @@ double player_t::composite_bonus_armor() const
 
 double player_t::composite_damage_versatility() const
 {
-  double cdv = apply_combat_rating_dr( RATING_DAMAGE_VERSATILITY,
-      composite_damage_versatility_rating() / current.rating.damage_versatility );
+  double cdv = composite_damage_versatility_rating() / current.rating.damage_versatility;
 
   if ( !is_pet() && !is_enemy() && type != HEALING_ENEMY )
   {
@@ -3915,8 +3906,7 @@ double player_t::composite_damage_versatility() const
 
 double player_t::composite_heal_versatility() const
 {
-  double chv = apply_combat_rating_dr( RATING_HEAL_VERSATILITY,
-      composite_heal_versatility_rating() / current.rating.heal_versatility );
+  double chv = composite_heal_versatility_rating() / current.rating.heal_versatility;
 
   if ( !is_pet() && !is_enemy() && type != HEALING_ENEMY )
   {
@@ -3937,8 +3927,7 @@ double player_t::composite_heal_versatility() const
 
 double player_t::composite_mitigation_versatility() const
 {
-  double cmv = apply_combat_rating_dr( RATING_MITIGATION_VERSATILITY,
-      composite_mitigation_versatility_rating() / current.rating.mitigation_versatility );
+  double cmv = composite_mitigation_versatility_rating() / current.rating.mitigation_versatility;
 
   if ( !is_pet() && !is_enemy() && type != HEALING_ENEMY )
   {
@@ -3959,7 +3948,7 @@ double player_t::composite_mitigation_versatility() const
 
 double player_t::composite_leech() const
 {
-  return apply_combat_rating_dr( RATING_LEECH, composite_leech_rating() / current.rating.leech );
+  return composite_leech_rating() / current.rating.leech;
 }
 
 double player_t::composite_run_speed() const
@@ -4118,6 +4107,11 @@ double player_t::composite_player_critical_damage_multiplier( const action_state
   {
     m *= 1.0 + buffs.fathom_hunter->check_value();
   }
+  // Critical hit damage buff from corruption effect
+  if ( buffs.strikethrough )
+  {
+    m *= 1.0 + buffs.strikethrough->check_value();
+  }
   return m;
 }
 
@@ -4232,7 +4226,7 @@ double player_t::composite_attribute_multiplier( attribute_e attr ) const
   if ( is_pet() || is_enemy() || type == HEALING_ENEMY )
     return m;
 
-  if ( ( true_level >= 27 ) && matching_gear )
+  if ( ( true_level >= 50 ) && matching_gear )
   {
     m *= 1.0 + matching_gear_multiplier( attr );
   }
@@ -4258,6 +4252,8 @@ double player_t::composite_attribute_multiplier( attribute_e attr ) const
         m *= 1.0 + buffs.archmages_incandescence_int->data().effectN( 1 ).percent();
       if ( sim->auras.arcane_intellect->check() )
         m *= 1.0 + sim->auras.arcane_intellect->value();
+      if ( buffs.flash_of_insight )
+        m *= 1.0 + buffs.flash_of_insight->stack_value();
       break;
     case ATTR_SPIRIT:
       if ( buffs.amplification )
@@ -5294,7 +5290,7 @@ void player_t::schedule_cwc_ready( timespan_t delta_time )
   }
   else if ( channeling )
   {
-    threshold = sim->current_time() + channeling->get_dot()->remains();
+    threshold = channeling->get_dot()->end_event->occurs();
     threshold += sim->channel_lag + 4 * sim->channel_lag_stddev;
   }
   else
@@ -5929,7 +5925,7 @@ bool player_t::resource_available( resource_e resource_type, double cost ) const
   return available;
 }
 
-void player_t::recalculate_resource_max( resource_e resource_type, gain_t* source )
+void player_t::recalculate_resource_max( resource_e resource_type )
 {
   resources.max[ resource_type ] = resources.base[ resource_type ];
   resources.max[ resource_type ] *= resources.base_multiplier[ resource_type ];
@@ -5950,16 +5946,10 @@ void player_t::recalculate_resource_max( resource_e resource_type, gain_t* sourc
     default:
       break;
   }
-
   resources.max[ resource_type ] += resources.temporary[ resource_type ];
-  resources.max[ resource_type ] *= resources.initial_multiplier[ resource_type ];
 
+  resources.max[ resource_type ] *= resources.initial_multiplier[ resource_type ];
   // Sanity check on current values
-  if ( source && resources.current[ resource_type ] > resources.max[ resource_type ] )
-  {
-    // Track overflow from loss if applicable
-    source->add( resource_type, 0, resources.current[ resource_type ] - resources.max[ resource_type ] );
-  }
   resources.current[ resource_type ] = std::min( resources.current[ resource_type ], resources.max[ resource_type ] );
 }
 
@@ -6804,7 +6794,7 @@ void player_t::target_mitigation( school_e school, result_amount_type dmg_type, 
     if ( s -> action )
     {
       double armor  = s -> target_armor;
-      double resist = armor / ( armor + s -> target-> base.armor_coeff );
+      double resist = armor / ( armor + s -> action -> player -> current.armor_coeff );
       resist        = clamp( resist, 0.0, armor_cap );
       s -> result_amount *= 1.0 - resist;
     }
@@ -9244,7 +9234,7 @@ void player_t::replace_spells()
   {
     for ( int i = 0; i < MAX_TALENT_COLS; i++ )
     {
-      if ( talent_points.has_row_col( j, i ) && true_level < 20 + ( j == 0 ? -1 : j ) * 5 )
+      if ( talent_points.has_row_col( j, i ) && true_level < std::min( ( j + 1 ) * 15, 100 ) )
       {
         const talent_data_t* td = talent_data_t::find( type, j, i, specialization(), dbc->ptr );
         if ( td && td->replace_id() )
@@ -9499,9 +9489,15 @@ item_runeforge_t player_t::find_runeforge_legendary( util::string_view name, boo
   {
     return item_runeforge_t::nil();
   }
-  
-  // 8/22/2020 - Removed spec filtering for now since these currently have no spec limitations in-game
-  //             May need to restore some logic at some point if Blizzard points to different spells per-spec
+
+  auto spec_it = range::find_if( entries, [this]( const runeforge_legendary_entry_t& e ) {
+    return e.specialization_id == static_cast<unsigned>( _spec );
+  } );
+
+  if ( spec_it == entries.end() )
+  {
+    return item_runeforge_t::not_found();
+  }
 
   // Iterate over all items to find the bonus id on an item. Note that Simulationcraft
   // currently does not enforce the item restrictions on the legendary bonuses. This is
@@ -9510,7 +9506,7 @@ item_runeforge_t player_t::find_runeforge_legendary( util::string_view name, boo
   const item_t* item = nullptr;
   for ( const auto& i : items )
   {
-    auto it = range::find( i.parsed.bonus_id, entries.front().bonus_id );
+    auto it = range::find( i.parsed.bonus_id, spec_it->bonus_id );
     if ( it != i.parsed.bonus_id.end() )
     {
       item = &i;
@@ -9523,7 +9519,7 @@ item_runeforge_t player_t::find_runeforge_legendary( util::string_view name, boo
     return item_runeforge_t::not_found();
   }
 
-  return { entries.front(), item };
+  return { *spec_it, item };
 }
 
 /**
