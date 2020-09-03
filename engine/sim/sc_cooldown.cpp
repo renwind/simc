@@ -242,9 +242,6 @@ void cooldown_t::adjust_remaining_duration( double delta )
 
 void cooldown_t::adjust( timespan_t amount, bool require_reaction )
 {
-  if ( amount == 0_ms )
-    return;
-
   // Normal cooldown, just adjust as we see fit
   if ( charges == 1 )
   {
@@ -639,4 +636,9 @@ bool cooldown_t::is_ready() const
   // Cooldown is not up, and is action-bound (essentially foreground action), check if it's within
   // the player's (or default) cooldown tolerance for queueing.
   return queueable() <= sim.current_time();
+}
+
+void format_to( const cooldown_t& cooldown, fmt::format_context::iterator out )
+{
+  fmt::format_to( out, "Cooldown {}", cooldown.name_str );
 }
