@@ -78,7 +78,7 @@
       <SDLCheck>true</SDLCheck>
       <ConformanceMode>true</ConformanceMode>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
-      <DisableSpecificWarnings>26495;26451</DisableSpecificWarnings>
+      <DisableSpecificWarnings>26495;26451;26812</DisableSpecificWarnings>
       <AdditionalOptions>/bigobj %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
     <Link>
@@ -142,7 +142,6 @@
   </ItemDefinitionGroup>
   <ItemGroup>
   </ItemGroup>
-  <Import Project="PrecompiledHeaders.props" />
   <Import Project="CommonIncludeDirectories.props" />
   <Import Project="..\source_files\VS_engine.props" />
   <Import Project="..\source_files\VS_engine_main.props" />

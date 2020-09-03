@@ -11,14 +11,17 @@
 #include <vector>
 #include <memory>
 
-#include "sc_timespan.hpp"
+#include "util/timespan.hpp"
 #include "sc_enums.hpp"
+#include "dbc/dbc.hpp"
 #include "player/sc_actor_pair.hpp"
+#include "player/covenant.hpp"
 #include "util/sample_data.hpp"
 #include "util/span.hpp"
 #include "util/string_view.hpp"
 #include "util/timeline.hpp"
 #include "sim/uptime.hpp"
+#include "util/format.hpp"
 
 struct buff_t;
 struct stat_buff_t;
@@ -72,6 +75,9 @@ private: // private because changing max_stacks requires resizing some stack-dep
 
 public:
   double default_value;
+  size_t default_value_effect_idx;
+  double default_value_effect_multiplier;
+
   /**
    * Is buff manually activated or not (eg. a proc).
    * non-activated player buffs have a delayed trigger event
@@ -86,7 +92,8 @@ public:
   // dynamic values
   double current_value;
   int current_stack;
-  timespan_t buff_duration;
+  timespan_t base_buff_duration;
+  double buff_duration_multiplier;
   double default_chance;
   double manual_chance; // user-specified "overridden" proc-chance
   std::vector<timespan_t> stack_react_time;
@@ -214,6 +221,12 @@ public:
     return false;
   }
 
+  // Get the base buff duration modified by the duration multiplier, if applicable
+  virtual timespan_t buff_duration() const
+  {
+    return base_buff_duration * buff_duration_multiplier;
+  }
+
   timespan_t remains() const;
   timespan_t elapsed( timespan_t t ) const { return t - last_start; }
   timespan_t last_trigger_time() const { return last_trigger; }
@@ -287,13 +300,23 @@ public:
 
   buff_t* set_chance( double chance );
   buff_t* set_duration( timespan_t duration );
+  buff_t* modify_duration( timespan_t duration );
+  buff_t* set_duration_multiplier( double );
   buff_t* set_max_stack( int max_stack );
+  buff_t* modify_max_stack( int max_stack );
   buff_t* set_cooldown( timespan_t duration );
+  buff_t* modify_cooldown( timespan_t duration );
   buff_t* set_period( timespan_t );
   //virtual buff_t* set_chance( double chance );
   buff_t* set_quiet( bool quiet );
   buff_t* add_invalidate( cache_e );
-  buff_t* set_default_value( double );
+  buff_t* set_default_value( double, size_t = 0 );
+  buff_t* set_default_value_from_effect( size_t, double = 0.01 );
+  buff_t* set_default_value_from_effect_type( effect_subtype_t a_type,
+                                              property_type_t p_type = P_GENERIC,
+                                              double multiplier      = 0.0,
+                                              effect_type_t e_type   = E_APPLY_AURA );
+  buff_t* modify_default_value( double, size_t = 0 );
   buff_t* set_reverse( bool );
   buff_t* set_activated( bool );
   buff_t* set_can_cancel( bool cc );
@@ -317,6 +340,12 @@ public:
   buff_t* set_reverse_stack_count( int value );
   buff_t* set_stack_behavior( buff_stack_behavior b );
 
+  buff_t* apply_affecting_aura( const spell_data_t* spell );
+  buff_t* apply_affecting_effect( const spelleffect_data_t& effect );
+  buff_t* apply_affecting_conduit( const conduit_data_t& conduit, int effect_num = 1 );
+  buff_t* apply_affecting_conduit_effect( const conduit_data_t& conduit, size_t effect_num );
+
+  friend void format_to( const buff_t&, fmt::format_context::iterator );
 private:
   void update_trigger_calculations();
   void adjust_haste();
@@ -325,8 +354,6 @@ private:
 protected:
   void update_stack_uptime_array( timespan_t current_time, int old_stacks );
 };
-
-std::ostream& operator<<(std::ostream &os, const buff_t& p);
 
 struct stat_buff_t : public buff_t
 {

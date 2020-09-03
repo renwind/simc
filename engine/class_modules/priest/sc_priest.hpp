@@ -445,7 +445,7 @@ public:
   struct
   {
     // Generic Priest
-    item_runeforge_t twins_of_the_sun_priestess;  // only used with Conduit to reduce CD of PI
+    item_runeforge_t twins_of_the_sun_priestess;
     // Holy
     item_runeforge_t divine_image;          // NYI
     item_runeforge_t harmonious_apparatus;  // NYI
@@ -454,7 +454,7 @@ public:
     item_runeforge_t the_penitent_one;  // Effect implemented, but not hooked up to PW:Radiance
     // Shadow
     item_runeforge_t painbreaker_psalm;
-    item_runeforge_t shadowflame_prism;  // TODO: Add 20% damage modifier
+    item_runeforge_t shadowflame_prism;
     item_runeforge_t eternal_call_to_the_void;
     item_runeforge_t talbadars_stratagem;
   } legendary;
@@ -564,6 +564,9 @@ private:
   expr_t* create_expression_holy( action_t* a, util::string_view name_str );
   action_t* create_action_holy( util::string_view name, util::string_view options_str );
 
+  int shadow_weaving_active_dots( const player_t* target ) const;
+  double shadow_weaving_multiplier( const player_t* target ) const;
+
   target_specific_t<priest_td_t> _target_data;
 
 public:
@@ -578,7 +581,7 @@ public:
   void trigger_psychic_link( action_state_t* );
   void trigger_wrathful_faerie();
   void remove_wrathful_faerie();
-  const priest_td_t* find_target_data( player_t* target ) const
+  const priest_td_t* find_target_data( const player_t* target ) const
   {
     return _target_data[ target ];
   }
@@ -587,7 +590,7 @@ public:
    * Insanity tracking
    *
    * Handles the resource gaining from abilities, and insanity draining and manages an event that forcibly punts the
-   * actor out of Voidform the exact moment insanity hitszero (millisecond resolution).
+   * actor out of Voidform the exact moment insanity hits zero (millisecond resolution).
    */
   struct insanity_state_t final
   {
@@ -998,7 +1001,8 @@ struct shadowflame_prism_t final : public priest_pet_spell_t
   void trigger( player_t* target, double original_amount )
   {
     base_dd_min = base_dd_max = ( original_amount * shadowflame_increase );
-    player->sim->print_debug( "Triggered shadowflame prism damage on target {} at {} percent increase.", *target, shadowflame_increase );
+    player->sim->print_debug( "Triggered shadowflame prism damage on target {} at {} percent increase.", *target,
+                              shadowflame_increase );
 
     set_target( target );
     execute();
@@ -1090,14 +1094,14 @@ public:
     {
       const spelleffect_data_t& effect;
       bool& affects;
-    } affects[] = {{priest().buffs.voidform->data().effectN( 1 ), affected_by.voidform_da},
-                   {priest().buffs.voidform->data().effectN( 2 ), affected_by.voidform_ta},
-                   {priest().buffs.shadowform->data().effectN( 1 ), affected_by.shadowform_da},
-                   {priest().buffs.shadowform->data().effectN( 4 ), affected_by.shadowform_ta},
-                   {priest().buffs.twist_of_fate->data().effectN( 1 ), affected_by.twist_of_fate_da},
-                   {priest().buffs.twist_of_fate->data().effectN( 2 ), affected_by.twist_of_fate_ta},
-                   {priest().buffs.shadow_covenant->data().effectN( 2 ), affected_by.shadow_covenant_da},
-                   {priest().buffs.shadow_covenant->data().effectN( 3 ), affected_by.shadow_covenant_ta}};
+    } affects[] = { { priest().buffs.voidform->data().effectN( 1 ), affected_by.voidform_da },
+                    { priest().buffs.voidform->data().effectN( 2 ), affected_by.voidform_ta },
+                    { priest().buffs.shadowform->data().effectN( 1 ), affected_by.shadowform_da },
+                    { priest().buffs.shadowform->data().effectN( 4 ), affected_by.shadowform_ta },
+                    { priest().buffs.twist_of_fate->data().effectN( 1 ), affected_by.twist_of_fate_da },
+                    { priest().buffs.twist_of_fate->data().effectN( 2 ), affected_by.twist_of_fate_ta },
+                    { priest().buffs.shadow_covenant->data().effectN( 2 ), affected_by.shadow_covenant_da },
+                    { priest().buffs.shadow_covenant->data().effectN( 3 ), affected_by.shadow_covenant_ta } };
 
     for ( const auto& a : affects )
     {
@@ -1115,7 +1119,7 @@ public:
     return *( priest().get_target_data( t ) );
   }
 
-  const priest_td_t* find_td( player_t* t ) const
+  const priest_td_t* find_td( const player_t* t ) const
   {
     return priest().find_target_data( t );
   }
@@ -1322,7 +1326,8 @@ struct priest_spell_t : public priest_action_t<spell_t>
         priest().buffs.twist_of_fate->trigger();
       }
 
-      if ( priest().specialization() == PRIEST_SHADOW && s->result_type == result_amount_type::DMG_DIRECT && s->result_amount > 0 )
+      if ( priest().specialization() == PRIEST_SHADOW && s->result_type == result_amount_type::DMG_DIRECT &&
+           s->result_amount > 0 )
       {
         const priest_td_t* td = find_td( s->target );
         if ( td && td->buffs.wrathful_faerie->check() )
@@ -1331,58 +1336,6 @@ struct priest_spell_t : public priest_action_t<spell_t>
         }
       }
     }
-  }
-
-  double composite_da_multiplier( const action_state_t* state ) const override
-  {
-    double d = base_t::composite_da_multiplier( state );
-
-    if ( priest().mastery_spells.shadow_weaving->ok() )
-    {
-      int dots;
-      if ( priest().buffs.voidform->check() )
-      {
-        dots = 3;
-      }
-      else
-      {
-        auto swp = state->target->get_dot( "shadow_word_pain", player );
-        auto vt  = state->target->get_dot( "vampiric_touch", player );
-        auto dp  = state->target->get_dot( "devouring_plague", player );
-
-        dots = swp->is_ticking() + vt->is_ticking() + dp->is_ticking();
-      }
-      double increase = dots * priest().cache.mastery_value();
-      d *= ( 1.0 + increase );
-    }
-
-    return d;
-  }
-
-  double composite_ta_multiplier( const action_state_t* state ) const override
-  {
-    double d = base_t::composite_ta_multiplier( state );
-
-    if ( priest().mastery_spells.shadow_weaving->ok() )
-    {
-      int dots;
-      if ( priest().buffs.voidform->check() )
-      {
-        dots = 3;
-      }
-      else
-      {
-        auto swp = state->target->get_dot( "shadow_word_pain", player );
-        auto vt  = state->target->get_dot( "vampiric_touch", player );
-        auto dp  = state->target->get_dot( "devouring_plague", player );
-
-        dots = swp->is_ticking() + vt->is_ticking() + dp->is_ticking();
-      }
-      double increase = dots * priest().cache.mastery_value();
-      d *= ( 1.0 + increase );
-    }
-
-    return d;
   }
 
   double get_death_throes_bonus() const
@@ -1400,6 +1353,27 @@ struct priest_spell_t : public priest_action_t<spell_t>
     return 0.0;
   }
 
+  void trigger_dark_thoughts( const player_t* target, proc_t* proc )
+  {
+    if ( !priest().specs.dark_thoughts->ok() )
+      return;
+    const priest_td_t* td = find_td( target );
+    if ( !td )
+      return;
+    const dot_t* swp = td->dots.shadow_word_pain;
+    const dot_t* vt  = td->dots.vampiric_touch;
+    const dot_t* dp  = td->dots.devouring_plague;
+
+    int dots = swp->is_ticking() + vt->is_ticking() + dp->is_ticking();
+    if ( rng().roll( priest().specs.dark_thoughts->effectN( 1 ).percent() * dots ) )
+    {
+      sim->print_debug( "{} activated Dark Thoughts using {} with {} chance with {} dots", *player, *this,
+                        priest().specs.dark_thoughts->effectN( 1 ).percent() * dots, dots );
+      priest().buffs.dark_thoughts->trigger();
+      proc->occur();
+    }
+  }
+
   void assess_damage( result_amount_type type, action_state_t* s ) override
   {
     base_t::assess_damage( type, s );
@@ -1415,7 +1389,7 @@ struct priest_spell_t : public priest_action_t<spell_t>
   void trigger_vampiric_embrace( action_state_t* s )
   {
     double amount = s->result_amount;
-    amount *= priest().buffs.vampiric_embrace->data().effectN( 1 ).percent();  // FIXME additive or multiplicate?
+    amount *= priest().buffs.vampiric_embrace->data().effectN( 1 ).percent();  // FIXME additive or multiplicative?
 
     for ( player_t* ally : sim->player_no_pet_list )
     {
@@ -1476,7 +1450,7 @@ protected:
 
 struct dispersion_t final : public priest_buff_t<buff_t>
 {
-  bool no_insanty_drain;
+  bool no_insanity_drain;
 
   dispersion_t( priest_t& p );
 };
@@ -1534,10 +1508,10 @@ struct priest_module_t final : public module_t
   }
   void init( player_t* p ) const override
   {
-    p->buffs.guardian_spirit = make_buff( p, "guardian_spirit",
+    p->buffs.guardian_spirit  = make_buff( p, "guardian_spirit",
                                           p->find_spell( 47788 ) );  // Let the ability handle the CD
-    p->buffs.pain_supression = make_buff( p, "pain_supression",
-                                          p->find_spell( 33206 ) );  // Let the ability handle the CD
+    p->buffs.pain_suppression = make_buff( p, "pain_suppression",
+                                           p->find_spell( 33206 ) );  // Let the ability handle the CD
   }
   void static_init() const override
   {
@@ -1559,7 +1533,7 @@ struct priest_module_t final : public module_t
  * Takes the cooldown and new maximum charge count
  * Function depends on the internal working of cooldown_t::reset
  */
-static void adjust_max_charges( cooldown_t* cooldown, int new_max_charges )
+inline void adjust_max_charges( cooldown_t* cooldown, int new_max_charges )
 {
   assert( new_max_charges > 0 && "Cooldown charges must be greater than 0" );
   assert( cooldown && "Cooldown must not be null" );
@@ -1616,7 +1590,7 @@ static void adjust_max_charges( cooldown_t* cooldown, int new_max_charges )
 
     /**
      * This loop is used to remove all of the charges and start the cooldown recovery event properly.
-     * It does it by repetetively calling cooldown->start which will remove a current charge and restart the event
+     * It does it by repetitively calling cooldown->start which will remove a current charge and restart the event
      * timers.
      */
     for ( int i = 0; i < cooldown->charges; i++ )
