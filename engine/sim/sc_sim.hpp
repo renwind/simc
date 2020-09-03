@@ -344,6 +344,15 @@ struct sim_t : private sc_thread_t
     double infinite_stars_miss_chance = 0;
   } bfa_opts;
 
+  struct shadowlands_opt_t
+  {
+    /// Chance to catch each expelled sorrowful memory to extend the buff duration
+    /// TODO: Set this to a reasonable value
+    double combat_meditation_extend_chance = 0.5;
+    /// Number of nearby allies & enemies for the pointed courage soulbind
+    unsigned pointed_courage_nearby = 5;
+  } shadowlands_opts;
+
   // Auras and De-Buffs
   auto_dispose<std::vector<buff_t*>> buff_list;
 

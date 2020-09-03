@@ -174,7 +174,7 @@ static void generate_indices( bool ptr )
     for ( const spelleffect_data_t& effect : spell.effects() )
     {
       static constexpr effect_subtype_t category_subtypes[] = {
-        A_411, A_453, A_454, A_HASTED_CATEGORY
+        A_MODIFY_CATEGORY_COOLDOWN, A_MOD_MAX_CHARGES, A_MOD_RECHARGE_TIME, A_MOD_RECHARGE_MULTIPLIER, A_HASTED_CATEGORY
       };
       if ( range::contains( category_subtypes, effect.subtype() ) )
       {
@@ -183,7 +183,8 @@ static void generate_indices( bool ptr )
           spell_categories_index.add_effect( value, &effect, ptr );
       }
 
-      if ( effect.subtype() == A_ADD_PCT_LABEL_MODIFIER )
+      if ( effect.subtype() == A_ADD_PCT_LABEL_MODIFIER ||
+           effect.subtype() == A_ADD_FLAT_LABEL_MODIFIER )
       {
         const short value = as<short>( effect.misc_value2() );
         if ( value != 0 )
@@ -709,7 +710,8 @@ double dbc::fmt_value( double v, effect_type_t type, effect_subtype_t sub_type )
         case A_MOD_SPELL_DAMAGE_OF_STAT_PERCENT:
         case A_MOD_SPELL_HEALING_OF_STAT_PERCENT:
         case A_MOD_DAMAGE_PERCENT_DONE:
-        case A_MOD_DAMAGE_FROM_CASTER: // vendetta
+        case A_MOD_DAMAGE_FROM_CASTER: // Hunter's Mark
+        case A_MOD_DAMAGE_FROM_CASTER_SPELLS: // vendetta
         case A_MOD_ALL_CRIT_CHANCE:
         case A_MOD_EXPERTISE:
         case A_MOD_MANA_REGEN_INTERRUPT:  // Meditation
@@ -961,19 +963,15 @@ double dbc_t::dodge_base( pet_e t ) const
   return dodge_base( util::pet_class_type( t ) );
 }
 
-stat_data_t& dbc_t::race_base( race_e r ) const
+const stat_data_t& dbc_t::race_base( race_e r ) const
 {
   uint32_t race_id = util::race_id( r );
 
-#if SC_USE_PTR
-  return ptr ? __ptr_gt_race_stats[ race_id ]
-             : __gt_race_stats[ race_id ];
-#else
-  return __gt_race_stats[ race_id ];
-#endif
+  const auto data = SC_DBC_GET_DATA( __gt_race_stats, __ptr_gt_race_stats, ptr );
+  return data[ race_id ];
 }
 
-stat_data_t& dbc_t::race_base( pet_e /* r */ ) const
+const stat_data_t& dbc_t::race_base( pet_e /* r */ ) const
 {
   return race_base( RACE_NONE );
 }
@@ -1201,20 +1199,16 @@ double dbc_t::health_per_stamina( unsigned level ) const
 }
 
 
-stat_data_t& dbc_t::attribute_base( player_e t, unsigned level ) const
+const stat_data_t& dbc_t::attribute_base( player_e t, unsigned level ) const
 {
   uint32_t class_id = util::class_id( t );
 
   assert( class_id < dbc_t::class_max_size() && level > 0 && level <= MAX_LEVEL );
-#if SC_USE_PTR
-  return ptr ? __ptr_gt_class_stats_by_level[ class_id ][ level - 1 ]
-             : __gt_class_stats_by_level[ class_id ][ level - 1 ];
-#else
-  return __gt_class_stats_by_level[ class_id ][ level - 1 ];
-#endif
+  const auto data = SC_DBC_GET_DATA( __gt_class_stats_by_level, __ptr_gt_class_stats_by_level, ptr );
+  return data[ class_id ][ level - 1 ];
 }
 
-stat_data_t& dbc_t::attribute_base( pet_e t, unsigned level ) const
+const stat_data_t& dbc_t::attribute_base( pet_e t, unsigned level ) const
 {
   return attribute_base( util::pet_class_type( t ), level );
 }

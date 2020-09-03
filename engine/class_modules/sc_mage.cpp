@@ -176,34 +176,6 @@ struct buff_stack_benefit_t
   }
 };
 
-struct cooldown_reduction_data_t
-{
-  const cooldown_t* cd;
-
-  sample_data_helper_t* effective;
-  sample_data_helper_t* wasted;
-
-  cooldown_reduction_data_t( const cooldown_t* cooldown, const std::string& name ) :
-    cd( cooldown )
-  {
-    effective = cd->player->get_sample_data( name + " effective cooldown reduction" );
-    wasted    = cd->player->get_sample_data( name + " wasted cooldown reduction" );
-  }
-
-  void add( timespan_t reduction )
-  {
-    timespan_t remaining = cd->recharge_event
-      ? cd->current_charge_remains() + ( cd->charges - cd->current_charge - 1 ) * cooldown_t::cooldown_duration( cd )
-      : cd->remains();
-
-    double reduction_sec = -reduction.total_seconds();
-    double remaining_sec = remaining.total_seconds();
-    double effective_sec = std::min( reduction_sec, remaining_sec );
-    effective->add( effective_sec );
-    wasted->add( reduction_sec - effective_sec );
-  }
-};
-
 struct cooldown_waste_data_t : private noncopyable
 {
   const cooldown_t* cd;
@@ -357,6 +329,7 @@ public:
   std::array<timespan_t, AOE_MAX> ground_aoe_expiration;
 
   // Miscellaneous
+  int remaining_winters_chill;
   double distance_from_rune;
   double lucid_dreams_refund;
   double strive_for_perfection_multiplier;
@@ -520,6 +493,7 @@ public:
     cooldown_t* combustion;
     cooldown_t* cone_of_cold;
     cooldown_t* fire_blast;
+    cooldown_t* from_the_ashes;
     cooldown_t* frost_nova;
     cooldown_t* frozen_orb;
     cooldown_t* icy_veins;
@@ -598,7 +572,6 @@ public:
   // Sample data
   struct sample_data_t
   {
-    std::unique_ptr<cooldown_reduction_data_t> blizzard;
     std::unique_ptr<extended_sample_data_t> icy_veins_duration;
     std::unique_ptr<extended_sample_data_t> burn_duration_history;
     std::unique_ptr<extended_sample_data_t> burn_initial_mana;
@@ -614,6 +587,7 @@ public:
     const spell_data_t* arcane_explosion_2;
     const spell_data_t* arcane_mage;
     const spell_data_t* arcane_power_2;
+    const spell_data_t* arcane_power_3;
     const spell_data_t* clearcasting;
     const spell_data_t* clearcasting_2;
     const spell_data_t* clearcasting_3;
@@ -621,6 +595,7 @@ public:
     const spell_data_t* presence_of_mind_2;
     const spell_data_t* savant;
     const spell_data_t* touch_of_the_magi;
+    const spell_data_t* touch_of_the_magi_2;
 
     // Fire
     const spell_data_t* combustion_2;
@@ -628,13 +603,16 @@ public:
     const spell_data_t* critical_mass_2;
     const spell_data_t* dragons_breath_2;
     const spell_data_t* fireball_2;
+    const spell_data_t* fireball_3;
     const spell_data_t* fire_blast_2;
     const spell_data_t* fire_blast_3;
     const spell_data_t* fire_blast_4;
     const spell_data_t* fire_mage;
     const spell_data_t* flamestrike_2;
+    const spell_data_t* flamestrike_3;
     const spell_data_t* hot_streak;
     const spell_data_t* ignite;
+    const spell_data_t* phoenix_flames_2;
     const spell_data_t* pyroblast_2;
 
     // Frost
@@ -645,6 +623,9 @@ public:
     const spell_data_t* cold_snap_2;
     const spell_data_t* fingers_of_frost;
     const spell_data_t* frost_mage;
+    const spell_data_t* frost_nova_2;
+    const spell_data_t* frostbolt_2;
+    const spell_data_t* ice_lance_2;
     const spell_data_t* icicles;
     const spell_data_t* icicles_2;
     const spell_data_t* icy_veins_2;
@@ -675,7 +656,7 @@ public:
     const spell_data_t* lonely_winter;
     const spell_data_t* ice_nova;
 
-    // Tier 30
+    // Tier 25
     const spell_data_t* shimmer;
     const spell_data_t* master_of_time; // NYI
     const spell_data_t* slipstream;
@@ -684,12 +665,12 @@ public:
     const spell_data_t* glacial_insulation; // NYI
     const spell_data_t* ice_floes;
 
-    // Tier 45
+    // Tier 30
     const spell_data_t* incanters_flow;
     const spell_data_t* focus_magic;
     const spell_data_t* rune_of_power;
 
-    // Tier 60
+    // Tier 35
     const spell_data_t* resonance;
     const spell_data_t* arcane_echo;
     const spell_data_t* nether_tempest;
@@ -700,16 +681,16 @@ public:
     const spell_data_t* chain_reaction;
     const spell_data_t* ebonbolt;
 
-    // Tier 75
+    // Tier 40
     const spell_data_t* ice_ward;
     const spell_data_t* ring_of_frost; // NYI
     const spell_data_t* chrono_shift;
     const spell_data_t* frenetic_speed;
     const spell_data_t* frigid_winds; // NYI
 
-    // Tier 90
+    // Tier 45
     const spell_data_t* reverberate;
-    const spell_data_t* enlightened;
+    const spell_data_t* arcane_orb;
     const spell_data_t* supernova;
     const spell_data_t* flame_patch;
     const spell_data_t* conflagration;
@@ -718,10 +699,10 @@ public:
     const spell_data_t* splitting_ice;
     const spell_data_t* comet_storm;
 
-    // Tier 100
+    // Tier 50
     const spell_data_t* overpowered;
     const spell_data_t* time_anomaly;
-    const spell_data_t* arcane_orb;
+    const spell_data_t* enlightened;
     const spell_data_t* kindling;
     const spell_data_t* pyroclasm;
     const spell_data_t* meteor;
@@ -827,7 +808,6 @@ public:
   void init_base_stats() override;
   void create_buffs() override;
   void create_options() override;
-  void init_assessors() override;
   void init_action_list() override;
   std::string default_potion() const override;
   std::string default_flask() const override;
@@ -843,7 +823,7 @@ public:
   void init_resources( bool ) override;
   double resource_gain( resource_e, double, gain_t* = nullptr, action_t* = nullptr ) override;
   double resource_loss( resource_e, double, gain_t* = nullptr, action_t* = nullptr ) override;
-  void recalculate_resource_max( resource_e ) override;
+  void recalculate_resource_max( resource_e, gain_t* g = nullptr ) override;
   void reset() override;
   std::unique_ptr<expr_t> create_expression( util::string_view ) override;
   std::unique_ptr<expr_t> create_action_expression( action_t&, util::string_view ) override;
@@ -1119,8 +1099,6 @@ struct touch_of_the_magi_t : public buff_t
 
     explosion->set_target( player );
     double damage_fraction = p->spec.touch_of_the_magi->effectN( 1 ).percent();
-    // TODO: For some reason the Magi's Brand conduit is always active. Verify whether this is still
-    // the case closer to release, but for now this bug is not implemented.
     // TODO: Higher ranks of this spell use floating point values in the spell data.
     // Verify whether we need a floor operation here to trim those values down to integers,
     // which sometimes happens when Blizzard uses floating point numbers like this.
@@ -1153,10 +1131,10 @@ struct combustion_buff_t : public buff_t
     multiplier( data().effectN( 3 ).percent() )
   {
     set_cooldown( 0_ms );
-    set_default_value( data().effectN( 1 ).percent() );
+    set_default_value_from_effect( 1 );
     set_tick_zero( true );
     set_refresh_behavior( buff_refresh_behavior::DURATION );
-    buff_duration += p->spec.combustion_2->effectN( 1 ).time_value();
+    modify_duration( p->spec.combustion_2->effectN( 1 ).time_value() );
 
     set_stack_change_callback( [ this ] ( buff_t*, int, int cur )
     {
@@ -1229,10 +1207,11 @@ struct icy_veins_buff_t : public buff_t
   icy_veins_buff_t( mage_t* p ) :
     buff_t( p, "icy_veins", p->find_spell( 12472 ) )
   {
-    set_default_value( data().effectN( 1 ).percent() );
+    set_default_value_from_effect( 1 );
     set_cooldown( 0_ms );
     add_invalidate( CACHE_SPELL_HASTE );
-    buff_duration += p->talents.thermal_void->effectN( 2 ).time_value() + p->spec.icy_veins_2->effectN( 1 ).time_value();
+    modify_duration( p->spec.icy_veins_2->effectN( 1 ).time_value() );
+    modify_duration( p->talents.thermal_void->effectN( 2 ).time_value() );
   }
 
   void expire_override( int stacks, timespan_t duration ) override
@@ -1256,7 +1235,7 @@ struct incanters_flow_t : public buff_t
     set_duration( 0_ms );
     set_period( p->talents.incanters_flow->effectN( 1 ).period() );
     set_chance( p->talents.incanters_flow->ok() );
-    set_default_value( data().effectN( 1 ).percent() );
+    set_default_value_from_effect( 1 );
   }
 
   void reset() override
@@ -1463,13 +1442,13 @@ struct mage_spell_t : public spell_t
   struct triggers_t
   {
     bool bone_chilling = false;
-    bool from_the_ashes = true;
+    bool from_the_ashes = false;
     bool hot_streak = false;
     bool ignite = false;
     bool kindling = false;
 
     bool fevered_incantation = true; // TODO: Need to verify what exactly triggers Fevered Incantation.
-    bool icy_propulsion = true; // TODO: Need to verify what exactly triggers Icy Propulsion.
+    bool icy_propulsion = true;
     bool radiant_spark = false;
   } triggers;
 
@@ -1566,8 +1545,11 @@ public:
     if ( affected_by.rune_of_power )
       m *= 1.0 + p()->buffs.rune_of_power->check_value();
 
-    if ( affected_by.savant )
-      m *= 1.0 + p()->cache.mastery() * p()->spec.savant->effectN( 5 ).mastery_value();
+    if ( affected_by.deathborne )
+      m *= 1.0 + p()->buffs.deathborne->check_value();
+
+    if ( affected_by.siphoned_malice )
+      m *= 1.0 + p()->buffs.siphoned_malice->check_stack_value();
 
     return m;
   }
@@ -1576,13 +1558,8 @@ public:
   {
     double m = spell_t::composite_da_multiplier( s );
 
-    // TODO: These should work with ticking damage according to the tooltip,
-    // but currently don't.
-    if ( affected_by.deathborne )
-      m *= 1.0 + p()->buffs.deathborne->check_value();
-
-    if ( affected_by.siphoned_malice )
-      m *= 1.0 + p()->buffs.siphoned_malice->check_stack_value();
+    if ( affected_by.savant )
+      m *= 1.0 + p()->cache.mastery() * p()->spec.savant->effectN( 5 ).mastery_value();
 
     return m;
   }
@@ -1650,7 +1627,7 @@ public:
 
     if ( p()->buffs.arcane_power->check() )
     {
-      c *= 1.0 + p()->buffs.arcane_power->data().effectN( 2 ).percent()
+      c *= 1.0 + ( p()->spec.arcane_power_2->ok() ? p()->buffs.arcane_power->data().effectN( 2 ).percent() : 0.0 )
                + p()->talents.overpowered->effectN( 2 ).percent();
     }
 
@@ -1722,7 +1699,10 @@ public:
   {
     spell_t::impact( s );
 
-    if ( triggers.fevered_incantation && s->result_total > 0.0 )
+    if ( s->result_total <= 0.0 )
+      return;
+
+    if ( triggers.fevered_incantation )
     {
       if ( s->result == RESULT_CRIT )
         p()->buffs.fevered_incantation->trigger();
@@ -1730,7 +1710,7 @@ public:
         p()->buffs.fevered_incantation->expire();
     }
 
-    if ( triggers.icy_propulsion && p()->buffs.icy_veins->check() && s->result_total > 0.0 && s->result == RESULT_CRIT )
+    if ( triggers.icy_propulsion && s->result == RESULT_CRIT && p()->buffs.icy_veins->check() )
       p()->cooldowns.icy_veins->adjust( -0.1 * p()->conduits.icy_propulsion.time_value( conduit_data_t::S ) );
   }
 
@@ -1743,17 +1723,34 @@ public:
 
     if ( auto td = p()->target_data[ s->target ] )
     {
-      if ( triggers.radiant_spark && td->dots.radiant_spark->is_ticking() )
+      auto spark_dot = td->dots.radiant_spark;
+      if ( triggers.radiant_spark && spark_dot->is_ticking() )
       {
-        if ( td->debuffs.radiant_spark_vulnerability->check() < td->debuffs.radiant_spark_vulnerability->max_stack() )
+        auto spark_debuff = td->debuffs.radiant_spark_vulnerability;
+        if ( spark_debuff->check() < spark_debuff->max_stack() )
         {
-          td->debuffs.radiant_spark_vulnerability->trigger();
+          spark_debuff->trigger();
         }
         else
         {
-          td->debuffs.radiant_spark_vulnerability->expire();
+          spark_debuff->expire();
           // Prevent new applications of the vulnerability debuff until the DoT finishes ticking.
-          td->debuffs.radiant_spark_vulnerability->cooldown->start( nullptr, td->dots.radiant_spark->remains() );
+          spark_debuff->cooldown->start( nullptr, spark_dot->remains() );
+        }
+      }
+
+      auto totm = debug_cast<buffs::touch_of_the_magi_t*>( td->debuffs.touch_of_the_magi );
+      if ( totm->check() )
+      {
+        totm->accumulate_damage( s );
+
+        if ( p()->talents.arcane_echo->ok() && s->action != p()->action.arcane_echo )
+        {
+          make_event( *sim, 0_ms, [ this, t = s->target ]
+          {
+            p()->action.arcane_echo->set_target( t );
+            p()->action.arcane_echo->execute();
+          } );
         }
       }
     }
@@ -1879,13 +1876,17 @@ struct fire_mage_spell_t : public mage_spell_t
 
       // TODO: Double check how this works with Pheonix Flames and Deathborne Fireball
       // closer to release.
-      if ( triggers.kindling && p()->talents.kindling->ok() && s->result == RESULT_CRIT )
+      if ( triggers.kindling && s->result == RESULT_CRIT && p()->talents.kindling->ok() )
         p()->cooldowns.combustion->adjust( -p()->talents.kindling->effectN( 1 ).time_value() );
 
-      // TODO: What currently triggers From the Ashes seems inconsistent at best. Implement
-      // it according to the tooltip and check again closer to release.
-      if ( triggers.from_the_ashes && p()->talents.from_the_ashes->ok() && s->result == RESULT_CRIT )
+      if ( triggers.from_the_ashes
+        && s->result == RESULT_CRIT
+        && p()->talents.from_the_ashes->ok()
+        && p()->cooldowns.from_the_ashes->up() )
+      {
+        p()->cooldowns.from_the_ashes->start( p()->talents.from_the_ashes->internal_cooldown() );
         p()->cooldowns.phoenix_flames->adjust( p()->talents.from_the_ashes->effectN( 2 ).time_value() );
+      }
     }
   }
 
@@ -1943,9 +1944,7 @@ struct fire_mage_spell_t : public mage_spell_t
         else
         {
           p->procs.heating_up_generated->occur();
-          p->buffs.heating_up->trigger(
-            1, buff_t::DEFAULT_VALUE(), -1.0,
-            p->buffs.heating_up->buff_duration * p->cache.spell_speed() );
+          p->buffs.heating_up->trigger( p->buffs.heating_up->buff_duration() * p->cache.spell_speed() );
           if ( guaranteed )
             p->buffs.heating_up->predict();
         }
@@ -2268,6 +2267,14 @@ struct frost_mage_spell_t : public mage_spell_t
       source->occur( FROZEN_NONE );
   }
 
+  void execute() override
+  {
+    mage_spell_t::execute();
+
+    if ( consumes_winters_chill )
+      p()->remaining_winters_chill = std::max( p()->remaining_winters_chill - 1, 0 );
+  }
+
   void impact( action_state_t* s ) override
   {
     if ( calculate_on_impact )
@@ -2469,7 +2476,6 @@ struct arcane_barrage_t : public arcane_mage_spell_t
     double m = arcane_mage_spell_t::composite_da_multiplier( s );
 
     m *= 1.0 + s->n_targets * p()->talents.resonance->effectN( 1 ).percent();
-    m *= 1.0 + p()->buffs.arcane_harmony->check_stack_value();
 
     if ( s->target->health_percentage() < p()->runeforge.arcane_bombardment->effectN( 1 ).base_value() )
       m *= 1.0 + p()->runeforge.arcane_bombardment->effectN( 2 ).percent();
@@ -2482,6 +2488,7 @@ struct arcane_barrage_t : public arcane_mage_spell_t
     double am = arcane_mage_spell_t::action_multiplier();
 
     am *= arcane_charge_multiplier( true );
+    am *= 1.0 + p()->buffs.arcane_harmony->check_stack_value();
 
     return am;
   }
@@ -2914,8 +2921,6 @@ struct arcane_power_t : public arcane_mage_spell_t
 
     p()->buffs.arcane_power->trigger();
 
-    // TODO: TA Arcane Power proc also triggers Rune of Power, which doesn't
-    // seem intended. Check again closer to release.
     p()->buffs.rune_of_power->trigger();
     p()->distance_from_rune = 0.0;
   }
@@ -2977,7 +2982,6 @@ struct blizzard_shard_t : public frost_mage_spell_t
     if ( hit_any_target )
     {
       timespan_t reduction = -10 * num_targets_hit * p()->spec.blizzard_2->effectN( 1 ).time_value();
-      p()->sample_data.blizzard->add( reduction );
       p()->cooldowns.frozen_orb->adjust( reduction, false );
     }
   }
@@ -3106,6 +3110,12 @@ struct comet_storm_t : public frost_mage_spell_t
   timespan_t travel_time() const override
   {
     return delay;
+  }
+
+  void execute() override
+  {
+    frost_mage_spell_t::execute();
+    p()->remaining_winters_chill = 0;
   }
 
   void impact( action_state_t* s ) override
@@ -3254,7 +3264,7 @@ struct dragons_breath_t : public fire_mage_spell_t
   {
     parse_options( options_str );
     aoe = -1;
-    triggers.radiant_spark = true;
+    triggers.from_the_ashes = triggers.radiant_spark = true;
     crit_bonus_multiplier *= 1.0 + p->talents.alexstraszas_fury->effectN( 2 ).percent();
     cooldown->duration += p->spec.dragons_breath_2->effectN( 1 ).time_value();
 
@@ -3347,8 +3357,8 @@ struct ebonbolt_t : public frost_mage_spell_t
   {
     parse_options( options_str );
     parse_effect_data( p->find_spell( 257538 )->effectN( 1 ) );
-    calculate_on_impact = track_shatter = triggers.radiant_spark = true;
-    consumes_winters_chill = !p->bugs;
+    calculate_on_impact = track_shatter = consumes_winters_chill = triggers.radiant_spark = true;
+    triggers.icy_propulsion = !p->bugs;
 
     if ( p->talents.splitting_ice->ok() )
     {
@@ -3378,8 +3388,9 @@ struct fireball_t : public fire_mage_spell_t
     fire_mage_spell_t( n, p, p->find_class_spell( "Fireball" ) )
   {
     parse_options( options_str );
-    triggers.hot_streak = triggers.ignite = triggers.kindling = triggers.radiant_spark = true;
+    triggers.hot_streak = triggers.ignite = triggers.kindling = triggers.from_the_ashes = triggers.radiant_spark = true;
     affected_by.deathborne_cleave = true;
+    base_multiplier *= 1.0 + p->spec.fireball_3->effectN( 1 ).percent();
     base_dd_adder += p->azerite.duplicative_incineration.value( 2 );
 
     if ( p->talents.conflagration->ok() )
@@ -3490,7 +3501,8 @@ struct flamestrike_t : public hot_streak_spell_t
     parse_options( options_str );
     triggers.ignite = triggers.radiant_spark = true;
     aoe = -1;
-    base_multiplier *= 1.0 + p->spec.flamestrike_2->effectN( 1 ).percent();
+    base_execute_time += p->spec.flamestrike_2->effectN( 1 ).time_value();
+    base_multiplier *= 1.0 + p->spec.flamestrike_3->effectN( 1 ).percent();
     base_multiplier *= 1.0 + p->conduits.master_flame.percent();
 
     if ( p->talents.flame_patch->ok() )
@@ -3636,6 +3648,7 @@ struct flurry_t : public frost_mage_spell_t
     bool brain_freeze = p()->buffs.brain_freeze->up();
     p()->state.brain_freeze_active = brain_freeze;
     p()->buffs.brain_freeze->decrement();
+    p()->remaining_winters_chill = 2;
 
     if ( brain_freeze )
       p()->procs.brain_freeze_used->occur();
@@ -3672,6 +3685,7 @@ struct frostbolt_t : public frost_mage_spell_t
     parse_options( options_str );
     parse_effect_data( p->find_spell( 228597 )->effectN( 1 ) );
     triggers.bone_chilling = calculate_on_impact = track_shatter = consumes_winters_chill = triggers.radiant_spark = affected_by.deathborne_cleave = true;
+    base_multiplier *= 1.0 + p->spec.frostbolt_2->effectN( 1 ).percent();
     base_multiplier *= 1.0 + p->talents.lonely_winter->effectN( 1 ).percent();
 
     if ( p->spec.icicles->ok() )
@@ -3690,6 +3704,10 @@ struct frostbolt_t : public frost_mage_spell_t
     timespan_t t = frost_mage_spell_t::gcd();
 
     t *= 1.0 + p()->buffs.slick_ice->check_stack_value();
+
+    // TODO: This probably isn't intended since it breaks the spec even
+    // at fairly mild haste levels.
+    t = std::max( t, min_gcd );
 
     return t;
   }
@@ -3725,9 +3743,7 @@ struct frostbolt_t : public frost_mage_spell_t
 
     p()->trigger_delayed_buff( p()->buffs.expanded_potential );
 
-    // TODO: Freezing Winds currently only reduces the cooldown of Frozen Orb while
-    // Frozen Orb is active, verify that this is still the case closer to release.
-    if ( ( p()->buffs.freezing_winds->check() != 0 ) == p()->bugs )
+    if ( p()->buffs.freezing_winds->check() == 0 )
       p()->cooldowns.frozen_orb->adjust( -p()->runeforge.freezing_winds->effectN( 1 ).time_value(), false );
 
     if ( p()->buffs.cold_front_ready->check() )
@@ -3787,9 +3803,14 @@ struct frost_nova_t : public mage_spell_t
   {
     mage_spell_t::impact( s );
 
-    p()->trigger_crowd_control( s, MECHANIC_ROOT, p()->runeforge.grisly_icicle.ok() ? data().duration() : timespan_t::min() );
+    timespan_t duration = timespan_t::min();
     if ( p()->runeforge.grisly_icicle.ok() )
-      td( s->target )->debuffs.grisly_icicle->trigger();
+    {
+      auto debuff = td( s->target )->debuffs.grisly_icicle;
+      duration = debuff->buff_duration();
+      debuff->trigger();
+    }
+    p()->trigger_crowd_control( s, MECHANIC_ROOT, duration );
   }
 };
 
@@ -3830,7 +3851,6 @@ struct frozen_orb_bolt_t : public frost_mage_spell_t
   {
     double am = frost_mage_spell_t::action_multiplier();
 
-    // TODO: Icicles (Rank 2) is currently bugged and doesn't increase damage of Frozen Orb
     am *= 1.0 + p()->cache.mastery() * p()->spec.icicles_2->effectN( 1 ).mastery_value();
 
     return am;
@@ -4019,14 +4039,13 @@ struct ice_floes_t : public mage_spell_t
 
 // Ice Lance Spell ==========================================================
 
-// TODO: This is not currently a mage_spell_t because it doesn't benefit from
-// any of the Mage buffs or spec auras. Verify that this is still the case later.
-struct glacial_fragments_t : public spell_t
+struct glacial_fragments_t : public frost_mage_spell_t
 {
   glacial_fragments_t( util::string_view n, mage_t* p ) :
-    spell_t( n, p, p->find_spell( 327498 ) )
+    frost_mage_spell_t( n, p, p->find_spell( 327498 ) )
   {
     background = true;
+    affected_by.shatter = triggers.icy_propulsion = false;
   }
 };
 
@@ -4074,6 +4093,7 @@ struct ice_lance_t : public frost_mage_spell_t
     parse_options( options_str );
     parse_effect_data( p->find_spell( 228598 )->effectN( 1 ) );
     calculate_on_impact = track_shatter = consumes_winters_chill = triggers.radiant_spark = true;
+    base_multiplier *= 1.0 + p->spec.ice_lance_2->effectN( 1 ).percent();
     base_multiplier *= 1.0 + p->talents.lonely_winter->effectN( 1 ).percent();
     base_dd_adder += p->azerite.whiteout.value( 3 );
 
@@ -4268,43 +4288,19 @@ struct ice_nova_t : public frost_mage_spell_t
 
 struct icy_veins_t : public frost_mage_spell_t
 {
-  bool precombat;
-
   icy_veins_t( util::string_view n, mage_t* p, util::string_view options_str ) :
-    frost_mage_spell_t( n, p, p->find_specialization_spell( "Icy Veins" ) ),
-    precombat()
+    frost_mage_spell_t( n, p, p->find_specialization_spell( "Icy Veins" ) )
   {
     parse_options( options_str );
     harmful = false;
     cooldown->duration *= p->strive_for_perfection_multiplier;
   }
 
-  void init_finished() override
-  {
-    frost_mage_spell_t::init_finished();
-
-    if ( action_list && action_list->name_str == "precombat" )
-      precombat = true;
-  }
-
-  void schedule_execute( action_state_t* s ) override
-  {
-    // Icy Veins buff is applied before the spell is cast, allowing it to
-    // reduce GCD of the action that triggered it.
-    if ( !precombat )
-      p()->buffs.icy_veins->trigger();
-
-    frost_mage_spell_t::schedule_execute( s );
-  }
-
   void execute() override
   {
     frost_mage_spell_t::execute();
 
-    // Precombat actions skip schedule_execute, so the buff needs to be
-    // triggered here for precombat actions.
-    if ( precombat )
-      p()->buffs.icy_veins->trigger();
+    p()->buffs.icy_veins->trigger();
 
     // Frigid Grasp buff doesn't refresh.
     p()->buffs.frigid_grasp->expire();
@@ -4324,7 +4320,7 @@ struct fire_blast_t : public fire_mage_spell_t
   {
     parse_options( options_str );
     usable_while_casting = p->spec.fire_blast_3->ok();
-    triggers.hot_streak = triggers.ignite = triggers.kindling = triggers.radiant_spark = true;
+    triggers.hot_streak = triggers.ignite = triggers.kindling = triggers.from_the_ashes = triggers.radiant_spark = true;
 
     cooldown->charges += as<int>( p->spec.fire_blast_4->effectN( 1 ).base_value() );
     cooldown->charges += as<int>( p->talents.flame_on->effectN( 1 ).base_value() );
@@ -4468,8 +4464,6 @@ struct meteor_burn_t : public fire_mage_spell_t
     fire_mage_spell_t( n, p, p->find_spell( 155158 ) )
   {
     background = ground_aoe = true;
-    // This spell probably shouldn't interact with Radiant Spark at all.
-    affected_by.radiant_spark = triggers.radiant_spark = p->bugs;
     aoe = -1;
     std::swap( spell_power_mod.direct, spell_power_mod.tick );
     dot_duration = 0_ms;
@@ -4739,6 +4733,8 @@ struct phoenix_flames_t : public fire_mage_spell_t
     fire_mage_spell_t( n, p, p->find_specialization_spell( "Phoenix Flames" ) )
   {
     parse_options( options_str );
+    cooldown->charges += as<int>( p->spec.phoenix_flames_2->effectN( 1 ).base_value() );
+
     impact_action = get_action<phoenix_flames_splash_t>( "phoenix_flames_splash", p );
     add_child( impact_action );
   }
@@ -4785,7 +4781,7 @@ struct pyroblast_t : public hot_streak_spell_t
     pyroblast_dot()
   {
     parse_options( options_str );
-    triggers.hot_streak = triggers.ignite = triggers.kindling = triggers.radiant_spark = true;
+    triggers.hot_streak = triggers.ignite = triggers.kindling = triggers.from_the_ashes = triggers.radiant_spark = true;
     base_dd_adder += p->azerite.wildfire.value( 2 );
     base_multiplier *= 1.0 + p->conduits.controlled_destruction.percent();
 
@@ -4820,10 +4816,9 @@ struct pyroblast_t : public hot_streak_spell_t
     {
       timespan_t d = 1000 * p()->runeforge.sun_kings_blessing->effectN( 2 ).time_value();
       if ( p()->buffs.combustion->check() )
-        // If Combustion is already up, its duration is overwritten.
-        p()->buffs.combustion->extend_duration( p(), d - p()->buffs.combustion->remains() );
+        p()->buffs.combustion->extend_duration( p(), d );
       else
-        p()->buffs.combustion->trigger( 1, buff_t::DEFAULT_VALUE(), -1.0, d );
+        p()->buffs.combustion->trigger( d );
 
       p()->buffs.sun_kings_blessing_ready->expire();
     }
@@ -4939,6 +4934,26 @@ struct ray_of_frost_t : public frost_mage_spell_t
   }
 };
 
+// Rune of Power Spell ======================================================
+
+struct rune_of_power_t : public mage_spell_t
+{
+  rune_of_power_t( util::string_view n, mage_t* p, util::string_view options_str ) :
+    mage_spell_t( n, p, p->talents.rune_of_power )
+  {
+    parse_options( options_str );
+    harmful = false;
+  }
+
+  void execute() override
+  {
+    mage_spell_t::execute();
+
+    p()->buffs.rune_of_power->trigger();
+    p()->distance_from_rune = 0.0;
+  }
+};
+
 // Scorch Spell =============================================================
 
 struct scorch_t : public fire_mage_spell_t
@@ -4947,7 +4962,7 @@ struct scorch_t : public fire_mage_spell_t
     fire_mage_spell_t( n, p, p->find_specialization_spell( "Scorch" ) )
   {
     parse_options( options_str );
-    triggers.hot_streak = triggers.ignite = triggers.radiant_spark = true;
+    triggers.hot_streak = triggers.ignite = triggers.from_the_ashes = triggers.radiant_spark = true;
   }
 
   double composite_da_multiplier( const action_state_t* s ) const override
@@ -5113,7 +5128,9 @@ struct touch_of_the_magi_t : public arcane_mage_spell_t
   void execute() override
   {
     arcane_mage_spell_t::execute();
-    p()->buffs.arcane_charge->trigger( as<int>( data().effectN( 2 ).base_value() ) );
+
+    if ( p()->spec.touch_of_the_magi_2->ok() )
+      p()->buffs.arcane_charge->trigger( as<int>( data().effectN( 2 ).base_value() ) );
   }
 
   void impact( action_state_t* s ) override
@@ -5141,19 +5158,9 @@ struct touch_of_the_magi_explosion_t : public arcane_mage_spell_t
   {
     arcane_mage_spell_t::init();
 
+    // TODO: Touch of the Magi explosion seems to completely ignore taraget
+    // multipliers, which is most likely a bug. Double check later.
     snapshot_flags &= STATE_NO_MULTIPLIER;
-    snapshot_flags |= STATE_TGT_MUL_DA;
-  }
-
-  double composite_target_multiplier( player_t* target ) const override
-  {
-    double m = arcane_mage_spell_t::composite_target_multiplier( target );
-
-    // It seems that TotM explosion only double dips on target based damage reductions
-    // and not target based damage increases.
-    m = std::min( m, 1.0 );
-
-    return m;
   }
 };
 
@@ -5237,7 +5244,7 @@ struct radiant_spark_t : public mage_spell_t
     mage_spell_t( n, p, p->find_covenant_spell( "Radiant Spark" ) )
   {
     parse_options( options_str );
-    affected_by.ice_floes = true;
+    affected_by.ice_floes = affected_by.savant = true;
     affected_by.radiant_spark = false;
   }
 
@@ -5277,6 +5284,11 @@ struct shifting_power_pulse_t : public mage_spell_t
   {
     background = true;
     aoe = -1;
+  }
+
+  result_amount_type amount_type( const action_state_t*, bool ) const override
+  {
+    return result_amount_type::DMG_DIRECT;
   }
 };
 
@@ -5598,7 +5610,8 @@ struct time_anomaly_tick_event_t : public event_t
         possible_procs.push_back( TA_ARCANE_POWER );
       if ( mage->buffs.evocation->check() == 0 )
         possible_procs.push_back( TA_EVOCATION );
-      possible_procs.push_back( TA_TIME_WARP );
+      if ( mage->buffs.time_warp->check() == 0 && mage->player_t::buffs.bloodlust->check() == 0 )
+        possible_procs.push_back( TA_TIME_WARP );
 
       if ( !possible_procs.empty() )
       {
@@ -5608,7 +5621,7 @@ struct time_anomaly_tick_event_t : public event_t
           case TA_ARCANE_POWER:
           {
             timespan_t duration = 1000 * mage->talents.time_anomaly->effectN( 1 ).time_value();
-            mage->buffs.arcane_power->trigger( 1, buff_t::DEFAULT_VALUE(), -1.0, duration );
+            mage->buffs.arcane_power->trigger( duration );
             break;
           }
           case TA_EVOCATION:
@@ -5654,8 +5667,9 @@ mage_td_t::mage_td_t( player_t* target, mage_t* mage ) :
                                 ->set_chance( mage->spec.brain_freeze_2->ok() );
 
   // Runeforge Legendaries
-  debuffs.grisly_icicle = make_buff( *this, "grisly_icicle", mage->find_class_spell( "Frost Nova" ) )
+  debuffs.grisly_icicle = make_buff( *this, "grisly_icicle", mage->find_spell( 122 ) )
                             ->set_default_value( mage->runeforge.grisly_icicle->effectN( 2 ).percent() )
+                            ->modify_duration( mage->spec.frost_nova_2->effectN( 1 ).time_value() )
                             ->set_chance( mage->runeforge.grisly_icicle.ok() );
 
   // Covenant Abilities
@@ -5663,7 +5677,8 @@ mage_td_t::mage_td_t( player_t* target, mage_t* mage ) :
 
   debuffs.mirrors_of_torment          = make_buff<buffs::mirrors_of_torment_t>( this );
   debuffs.radiant_spark_vulnerability = make_buff( *this, "radiant_spark_vulnerability", mage->find_spell( 307454 ) )
-                                          ->set_default_value( mage->find_spell( 307454 )->effectN( 1 ).percent() + mage->conduits.ire_of_the_ascended.percent() );
+                                          ->set_default_value_from_effect( 1 )
+                                          ->apply_affecting_conduit( mage->conduits.ire_of_the_ascended );
 
   // Azerite
   debuffs.packed_ice = make_buff( *this, "packed_ice", mage->find_spell( 272970 ) )
@@ -5704,6 +5719,7 @@ mage_t::mage_t( sim_t* sim, util::string_view name, race_e r ) :
   cooldowns.combustion       = get_cooldown( "combustion"       );
   cooldowns.cone_of_cold     = get_cooldown( "cone_of_cold"     );
   cooldowns.fire_blast       = get_cooldown( "fire_blast"       );
+  cooldowns.from_the_ashes   = get_cooldown( "from_the_ashes"   );
   cooldowns.frost_nova       = get_cooldown( "frost_nova"       );
   cooldowns.frozen_orb       = get_cooldown( "frozen_orb"       );
   cooldowns.icy_veins        = get_cooldown( "icy_veins"        );
@@ -5723,7 +5739,7 @@ bool mage_t::trigger_crowd_control( const action_state_t* s, spell_mechanic type
     && ( s->target->is_add() || s->target->level() < sim->max_player_level + 3 ) )
   {
     if ( type == MECHANIC_ROOT )
-      get_target_data( s->target )->debuffs.frozen->trigger( 1, buff_t::DEFAULT_VALUE(), -1.0, d );
+      get_target_data( s->target )->debuffs.frozen->trigger( d );
 
     return true;
   }
@@ -5796,6 +5812,7 @@ action_t* mage_t::create_action( util::string_view name, const std::string& opti
   if ( name == "time_warp"              ) return new              time_warp_t( name, this, options_str );
 
   // Shared talents
+  if ( name == "rune_of_power"          ) return new          rune_of_power_t( name, this, options_str );
   if ( name == "shimmer"                ) return new                shimmer_t( name, this, options_str );
 
   // Covenant Abilities
@@ -5860,6 +5877,10 @@ void mage_t::create_actions()
   }
 
   player_t::create_actions();
+
+  // Ensure the cooldown of Phoenix Flames is properly initialized.
+  if ( talents.from_the_ashes->ok() && !find_action( "phoenix_flames" ) )
+    create_action( "phoenix_flames", "" );
 }
 
 void mage_t::create_options()
@@ -6072,7 +6093,7 @@ void mage_t::init_spells()
   talents.frigid_winds       = find_talent_spell( "Frigid Winds"       );
   // Tier 45
   talents.reverberate        = find_talent_spell( "Reverberate"        );
-  talents.enlightened        = find_talent_spell( "Enlightened"        );
+  talents.arcane_orb         = find_talent_spell( "Arcane Orb"         );
   talents.supernova          = find_talent_spell( "Supernova"          );
   talents.flame_patch        = find_talent_spell( "Flame Patch"        );
   talents.conflagration      = find_talent_spell( "Conflagration"      );
@@ -6083,7 +6104,7 @@ void mage_t::init_spells()
   // Tier 50
   talents.overpowered        = find_talent_spell( "Overpowered"        );
   talents.time_anomaly       = find_talent_spell( "Time Anomaly"       );
-  talents.arcane_orb         = find_talent_spell( "Arcane Orb"         );
+  talents.enlightened        = find_talent_spell( "Enlightened"        );
   talents.kindling           = find_talent_spell( "Kindling"           );
   talents.pyroclasm          = find_talent_spell( "Pyroclasm"          );
   talents.meteor             = find_talent_spell( "Meteor"             );
@@ -6098,24 +6119,29 @@ void mage_t::init_spells()
   spec.arcane_explosion_2    = find_specialization_spell( "Arcane Explosion", "Rank 2" );
   spec.arcane_mage           = find_specialization_spell( "Arcane Mage" );
   spec.arcane_power_2        = find_specialization_spell( "Arcane Power", "Rank 2" );
+  spec.arcane_power_3        = find_specialization_spell( "Arcane Power", "Rank 3" );
   spec.clearcasting          = find_specialization_spell( "Clearcasting" );
   spec.clearcasting_2        = find_specialization_spell( "Clearcasting", "Rank 2" );
   spec.clearcasting_3        = find_specialization_spell( "Clearcasting", "Rank 3" );
   spec.evocation_2           = find_specialization_spell( "Evocation", "Rank 2" );
   spec.presence_of_mind_2    = find_specialization_spell( "Presence of Mind", "Rank 2" );
   spec.touch_of_the_magi     = find_specialization_spell( "Touch of the Magi" );
+  spec.touch_of_the_magi_2   = find_specialization_spell( "Touch of the Magi", "Rank 2" );
 
   spec.combustion_2          = find_specialization_spell( "Combustion", "Rank 2" );
   spec.critical_mass         = find_specialization_spell( "Critical Mass" );
   spec.critical_mass_2       = find_specialization_spell( "Critical Mass", "Rank 2" );
   spec.dragons_breath_2      = find_specialization_spell( "Dragon's Breath", "Rank 2" );
   spec.fireball_2            = find_specialization_spell( "Fireball", "Rank 2" );
+  spec.fireball_3            = find_specialization_spell( "Fireball", "Rank 3" );
   spec.fire_blast_2          = find_specialization_spell( "Fire Blast", "Rank 2" );
   spec.fire_blast_3          = find_specialization_spell( "Fire Blast", "Rank 3" );
   spec.fire_blast_4          = find_specialization_spell( "Fire Blast", "Rank 4" );
   spec.fire_mage             = find_specialization_spell( "Fire Mage" );
   spec.flamestrike_2         = find_specialization_spell( "Flamestrike", "Rank 2" );
+  spec.flamestrike_3         = find_specialization_spell( "Flamestrike", "Rank 3" );
   spec.hot_streak            = find_specialization_spell( "Hot Streak" );
+  spec.phoenix_flames_2      = find_specialization_spell( "Phoenix Flames", "Rank 2" );
   spec.pyroblast_2           = find_specialization_spell( "Pyroblast", "Rank 2" );
 
   spec.brain_freeze          = find_specialization_spell( "Brain Freeze" );
@@ -6125,6 +6151,9 @@ void mage_t::init_spells()
   spec.cold_snap_2           = find_specialization_spell( "Cold Snap", "Rank 2" );
   spec.fingers_of_frost      = find_specialization_spell( "Fingers of Frost" );
   spec.frost_mage            = find_specialization_spell( "Frost Mage" );
+  spec.frost_nova_2          = find_specialization_spell( "Frost Nova", "Rank 2" );
+  spec.frostbolt_2           = find_specialization_spell( "Frostbolt", "Rank 2" );
+  spec.ice_lance_2           = find_specialization_spell( "Ice Lance", "Rank 2" );
   spec.icy_veins_2           = find_specialization_spell( "Icy Veins", "Rank 2" );
   spec.shatter               = find_specialization_spell( "Shatter" );
   spec.shatter_2             = find_specialization_spell( "Shatter", "Rank 2" );
@@ -6240,28 +6269,29 @@ void mage_t::create_buffs()
                                    { if ( old < 3 && cur >= 3 ) buffs.rule_of_threes->trigger(); } );
   buffs.arcane_power         = make_buff( this, "arcane_power", find_spell( 12042 ) )
                                  ->set_cooldown( 0_ms )
-                                 ->set_default_value( find_spell( 12042 )->effectN( 1 ).percent() + talents.overpowered->effectN( 1 ).percent() )
-                                 ->set_duration( find_spell( 12042 )->duration() + spec.arcane_power_2->effectN( 1 ).time_value() );
+                                 ->set_default_value_from_effect( 1 )
+                                 ->apply_affecting_aura( talents.overpowered )
+                                 ->modify_duration( spec.arcane_power_3->effectN( 1 ).time_value() );
   buffs.clearcasting         = make_buff<buffs::expanded_potential_buff_t>( this, "clearcasting", find_spell( 263725 ) )
-                                 ->set_default_value( find_spell( 263725 )->effectN( 1 ).percent() )
-                                 ->set_max_stack( find_spell( 263725 )->max_stacks() + as<int>( spec.clearcasting_3->effectN( 1 ).base_value() ) )
+                                 ->set_default_value_from_effect( 1 )
+                                 ->modify_max_stack( as<int>( spec.clearcasting_3->effectN( 1 ).base_value() ) )
                                  ->set_stack_change_callback( [ this ] ( buff_t*, int, int cur )
                                   // Nether Precision activates when all stacks of Clearcasting expire, regardless of how they expire.
                                    { if ( cur == 0 ) buffs.nether_precision->trigger( buffs.nether_precision->max_stack() ); } );
   buffs.clearcasting_channel = make_buff( this, "clearcasting_channel", find_spell( 277726 ) )
                                  ->set_quiet( true );
   buffs.evocation            = make_buff( this, "evocation", find_spell( 12051 ) )
-                                 ->set_default_value( find_spell( 12051 )->effectN( 1 ).percent() )
+                                 ->set_default_value_from_effect( 1 )
                                  ->set_cooldown( 0_ms )
                                  ->set_affects_regen( true );
   buffs.presence_of_mind     = make_buff( this, "presence_of_mind", find_spell( 205025 ) )
                                  ->set_cooldown( 0_ms )
                                  ->set_stack_change_callback( [ this ] ( buff_t*, int, int cur )
                                    { if ( cur == 0 ) cooldowns.presence_of_mind->start( cooldowns.presence_of_mind->action ); } )
-                                 ->set_max_stack( find_spell( 205025 )->initial_stacks() + as<int>( spec.presence_of_mind_2->effectN( 1 ).base_value() ) );
+                                 ->modify_max_stack( as<int>( spec.presence_of_mind_2->effectN( 1 ).base_value() ) );
 
   buffs.arcane_familiar      = make_buff( this, "arcane_familiar", find_spell( 210126 ) )
-                                 ->set_default_value( find_spell( 210126 )->effectN( 1 ).percent() )
+                                 ->set_default_value_from_effect( 1 )
                                  ->set_period( 3.0_s )
                                  ->set_tick_time_behavior( buff_tick_time_behavior::HASTED )
                                  ->set_tick_callback( [ this ] ( buff_t*, int, timespan_t )
@@ -6272,20 +6302,20 @@ void mage_t::create_buffs()
                                  ->set_stack_change_callback( [ this ] ( buff_t*, int, int )
                                    { recalculate_resource_max( RESOURCE_MANA ); } );
   buffs.chrono_shift         = make_buff( this, "chrono_shift", find_spell( 236298 ) )
-                                 ->set_default_value( find_spell( 236298 )->effectN( 1 ).percent() )
+                                 ->set_default_value_from_effect( 1 )
                                  ->add_invalidate( CACHE_RUN_SPEED )
                                  ->set_chance( talents.chrono_shift->ok() );
   buffs.enlightened_damage   = make_buff( this, "enlightened_damage", find_spell( 321388 ) )
-                                 ->set_default_value( find_spell( 321388 )->effectN( 1 ).percent() )
+                                 ->set_default_value_from_effect( 1 )
                                  ->add_invalidate( CACHE_PLAYER_DAMAGE_MULTIPLIER );
   buffs.enlightened_mana     = make_buff( this, "enlightened_mana", find_spell( 321390 ) )
-                                 ->set_default_value( find_spell( 321390 )->effectN( 1 ).percent() )
+                                 ->set_default_value_from_effect( 1 )
                                  ->set_affects_regen( true );
   buffs.rule_of_threes       = make_buff( this, "rule_of_threes", find_spell( 264774 ) )
-                                 ->set_default_value( find_spell( 264774 )->effectN( 1 ).percent() )
+                                 ->set_default_value_from_effect( 1 )
                                  ->set_chance( talents.rule_of_threes->ok() );
   buffs.time_warp            = make_buff( this, "time_warp", find_spell( 342242 ) )
-                                 ->set_default_value( find_spell( 342242 )->effectN( 1 ).percent() )
+                                 ->set_default_value_from_effect( 1 )
                                  ->add_invalidate( CACHE_SPELL_HASTE );
 
 
@@ -6293,7 +6323,7 @@ void mage_t::create_buffs()
   buffs.combustion            = make_buff<buffs::combustion_buff_t>( this );
   buffs.fireball              = make_buff( this, "fireball", find_spell( 157644 ) )
                                   ->set_chance( spec.fireball_2->ok() )
-                                  ->set_default_value( find_spell( 157644 )->effectN( 1 ).percent() )
+                                  ->set_default_value_from_effect( 1 )
                                   ->set_stack_change_callback( [ this ] ( buff_t*, int old, int cur )
                                     {
                                       if ( cur > old )
@@ -6313,14 +6343,14 @@ void mage_t::create_buffs()
                                     { if ( old == 0 ) buffs.firestorm->trigger(); } );
 
   buffs.alexstraszas_fury     = make_buff( this, "alexstraszas_fury", find_spell( 334277 ) )
-                                  ->set_default_value( find_spell( 334277 )->effectN( 1 ).percent() )
+                                  ->set_default_value_from_effect( 1 )
                                   ->set_chance( talents.alexstraszas_fury->ok() );
   buffs.frenetic_speed        = make_buff( this, "frenetic_speed", find_spell( 236060 ) )
-                                  ->set_default_value( find_spell( 236060 )->effectN( 1 ).percent() )
+                                  ->set_default_value_from_effect( 1 )
                                   ->add_invalidate( CACHE_RUN_SPEED )
                                   ->set_chance( talents.frenetic_speed->ok() );
   buffs.pyroclasm             = make_buff( this, "pyroclasm", find_spell( 269651 ) )
-                                  ->set_default_value( find_spell( 269651 )->effectN( 1 ).percent() )
+                                  ->set_default_value_from_effect( 1 )
                                   ->set_chance( talents.pyroclasm->effectN( 1 ).percent() );
 
 
@@ -6334,27 +6364,27 @@ void mage_t::create_buffs()
                              ->set_default_value( 0.1 * talents.bone_chilling->effectN( 1 ).percent() )
                              ->set_chance( talents.bone_chilling->ok() );
   buffs.chain_reaction   = make_buff( this, "chain_reaction", find_spell( 278310 ) )
-                             ->set_default_value( find_spell( 278310 )->effectN( 1 ).percent() )
+                             ->set_default_value_from_effect( 1 )
                              ->set_chance( talents.chain_reaction->ok() );
   buffs.freezing_rain    = make_buff( this, "freezing_rain", find_spell( 270232 ) )
-                             ->set_default_value( find_spell( 270232 )->effectN( 2 ).percent() )
+                             ->set_default_value_from_effect( 2 )
                              ->set_chance( talents.freezing_rain->ok() );
   buffs.ice_floes        = make_buff<buffs::ice_floes_buff_t>( this );
   buffs.ray_of_frost     = make_buff( this, "ray_of_frost", find_spell( 208141 ) )
-                             ->set_default_value( find_spell( 208141 )->effectN( 1 ).percent() );
+                             ->set_default_value_from_effect( 1 );
 
 
   // Shared
   buffs.incanters_flow    = make_buff<buffs::incanters_flow_t>( this );
   buffs.rune_of_power     = make_buff( this, "rune_of_power", find_spell( 116014 ) )
-                              ->set_default_value( find_spell( 116014 )->effectN( 1 ).percent() )
+                              ->set_default_value_from_effect( 1 )
                               ->set_refresh_behavior( buff_refresh_behavior::DISABLED )
                               ->set_chance( talents.rune_of_power->ok() );
   buffs.focus_magic_crit  = make_buff( this, "focus_magic_crit", find_spell( 321363 ) )
-                              ->set_default_value( find_spell( 321363 )->effectN( 1 ).percent() )
+                              ->set_default_value_from_effect( 1 )
                               ->add_invalidate( CACHE_SPELL_CRIT_CHANCE );
   buffs.focus_magic_int   = make_buff( this, "focus_magic_int", find_spell( 334180 ) )
-                              ->set_default_value( find_spell( 334180 )->effectN( 1 ).percent() )
+                              ->set_default_value_from_effect( 1 )
                               ->add_invalidate( CACHE_INTELLECT );
 
   // Azerite
@@ -6390,22 +6420,22 @@ void mage_t::create_buffs()
 
   // Runeforge Legendaries
   buffs.arcane_harmony = make_buff( this, "arcane_harmony", find_spell( 332777 ) )
-                           ->set_default_value( find_spell( 332777 )->effectN( 1 ).percent() )
+                           ->set_default_value_from_effect( 1 )
                            ->set_chance( runeforge.arcane_harmony.ok() );
   buffs.siphon_storm   = make_buff( this, "siphon_storm", find_spell( 332934 ) )
-                           ->set_default_value( find_spell( 332934 )->effectN( 1 ).percent() )
+                           ->set_default_value_from_effect( 1 )
                            ->add_invalidate( CACHE_INTELLECT )
                            ->set_chance( runeforge.siphon_storm.ok() );
   buffs.temporal_warp  = make_buff( this, "temporal_warp", find_spell( 327355 ) )
-                           ->set_default_value( find_spell( 327355 )->effectN( 1 ).percent() )
+                           ->set_default_value_from_effect( 1 )
                            ->add_invalidate( CACHE_SPELL_HASTE )
                            ->set_chance( runeforge.temporal_warp.ok() );
 
   buffs.fevered_incantation      = make_buff( this, "fevered_incantation", find_spell( 333049 ) )
-                                     ->set_default_value( find_spell( 333049 )->effectN( 1 ).percent() )
+                                     ->set_default_value_from_effect( 1 )
                                      ->set_chance( runeforge.fevered_incantation.ok() );
   buffs.firestorm                = make_buff( this, "firestorm", find_spell( 333100 ) )
-                                     ->set_default_value( find_spell( 333100 )->effectN( 2 ).percent() )
+                                     ->set_default_value_from_effect( 2 )
                                      ->set_trigger_spell( runeforge.firestorm );
   buffs.molten_skyfall           = make_buff( this, "molten_skyfall", find_spell( 333170 ) )
                                      ->set_chance( runeforge.molten_skyfall.ok() );
@@ -6423,11 +6453,11 @@ void mage_t::create_buffs()
                                { trigger_fof( 1.0, 1, fw_fof ); } )
                              ->set_chance( runeforge.freezing_winds.ok() );
   buffs.slick_ice        = make_buff( this, "slick_ice", find_spell( 327509 ) )
-                             ->set_default_value( find_spell( 327509 )->effectN( 1 ).percent() )
+                             ->set_default_value_from_effect( 1 )
                              ->set_chance( runeforge.slick_ice.ok() );
 
   buffs.disciplinary_command        = make_buff( this, "disciplinary_command", find_spell( 327371 ) )
-                                        ->set_default_value( find_spell( 327371 )->effectN( 1 ).percent() );
+                                        ->set_default_value_from_effect( 1 );
   buffs.disciplinary_command_arcane = make_buff( this, "disciplinary_command_arcane", find_spell( 327369  ) )
                                         ->set_quiet( true )
                                         ->set_chance( runeforge.disciplinary_command.ok() );
@@ -6442,8 +6472,8 @@ void mage_t::create_buffs()
 
   // Covenant Abilities
   buffs.deathborne = make_buff( this, "deathborne", find_spell( 324220 ) )
-                       ->set_default_value( find_spell( 324220 )->effectN( 1 ).percent() )
-                       ->set_duration( find_spell( 324220 )->duration() + conduits.gift_of_the_lich.time_value() );
+                       ->set_default_value_from_effect( 2 )
+                       ->modify_duration( conduits.gift_of_the_lich.time_value() );
 
 
   // Soulbind Conduits
@@ -6583,8 +6613,6 @@ void mage_t::init_uptimes()
       sample_data.burn_initial_mana     = std::make_unique<extended_sample_data_t>( "Burn initial mana", false );
       break;
     case MAGE_FROST:
-      sample_data.blizzard = std::make_unique<cooldown_reduction_data_t>( cooldowns.frozen_orb, "Blizzard" );
-
       if ( talents.thermal_void->ok() )
         sample_data.icy_veins_duration = std::make_unique<extended_sample_data_t>( "Icy Veins duration", false );
       break;
@@ -6600,42 +6628,6 @@ void mage_t::init_rng()
   // TODO: There's no data about this in game. Keep an eye out in case Blizzard
   // changes this behind the scenes.
   shuffled_rng.time_anomaly = get_shuffled_rng( "time_anomaly", 1, 16 );
-}
-
-void mage_t::init_assessors()
-{
-  player_t::init_assessors();
-
-  if ( spec.touch_of_the_magi->ok() )
-  {
-    auto assessor_fn = [ this ] ( result_amount_type rt, action_state_t* s )
-    {
-      if ( auto td = target_data[ s->target ] )
-      {
-        auto buff = debug_cast<buffs::touch_of_the_magi_t*>( td->debuffs.touch_of_the_magi );
-        if ( buff->check() )
-        {
-          buff->accumulate_damage( s );
-
-          // TODO: Double check what exactly procs Arcane Echo
-          if ( rt == result_amount_type::DMG_DIRECT && s->action != action.arcane_echo && talents.arcane_echo->ok() )
-          {
-            make_event( *sim, 0_ms, [ this, t = s->target ]
-            {
-              action.arcane_echo->set_target( t );
-              action.arcane_echo->execute();
-            } );
-          }
-        }
-      }
-
-      return assessor::CONTINUE;
-    };
-
-    assessor_out_damage.add( assessor::TARGET_DAMAGE - 1, assessor_fn );
-    for ( auto pet : pet_list )
-      pet->assessor_out_damage.add( assessor::TARGET_DAMAGE - 1, assessor_fn );
-  }
 }
 
 void mage_t::init_finished()
@@ -7289,12 +7281,12 @@ double mage_t::resource_loss( resource_e resource_type, double amount, gain_t* s
   return l;
 }
 
-void mage_t::recalculate_resource_max( resource_e rt )
+void mage_t::recalculate_resource_max( resource_e rt, gain_t* source )
 {
   double max = resources.max[ rt ];
   double pct = resources.pct( rt );
 
-  player_t::recalculate_resource_max( rt );
+  player_t::recalculate_resource_max( rt, source );
 
   if ( specialization() == MAGE_ARCANE && rt == RESOURCE_MANA )
   {
@@ -7334,10 +7326,7 @@ double mage_t::composite_player_critical_damage_multiplier( const action_state_t
 {
   double m = player_t::composite_player_critical_damage_multiplier( s );
 
-  // TODO: Verify whether there are damage types that this does not buff.
   m *= 1.0 + buffs.fevered_incantation->check_stack_value();
-
-  // TODO: Verify whether there are damage types that this does not buff.
   m *= 1.0 + buffs.disciplinary_command->check_value();
 
   return m;
@@ -7377,7 +7366,6 @@ double mage_t::composite_player_target_multiplier( player_t* target, school_e sc
 
   if ( auto td = target_data[ target ] )
   {
-    // TODO: Verify that the damage bonus from Frost Nova is actually applied to targets that are immune to roots.
     if ( dbc::is_school( school, SCHOOL_ARCANE ) || dbc::is_school( school, SCHOOL_FIRE ) || dbc::is_school( school, SCHOOL_FROST ) )
       m *= 1.0 + td->debuffs.grisly_icicle->check_value();
   }
@@ -7623,6 +7611,12 @@ std::unique_ptr<expr_t> mage_t::create_expression( util::string_view name )
     { return events.icicle != nullptr; } );
   }
 
+  if ( util::str_compare_ci( name, "remaining_winters_chill" ) )
+  {
+    return make_fn_expr( name, [ this ]
+    { return remaining_winters_chill; } );
+  }
+
   auto splits = util::string_split<util::string_view>( name, "." );
 
   if ( splits.size() == 3 && util::str_compare_ci( splits[ 0 ], "ground_aoe" ) )
@@ -7774,7 +7768,7 @@ void mage_t::vision_of_perfection_proc()
   }
   else
   {
-    primary->trigger( 1, buff_t::DEFAULT_VALUE(), -1.0, primary_duration );
+    primary->trigger( primary_duration );
     if ( secondary )
     {
       // For some reason, Frigid Grasp activates at a full duration.
@@ -7785,9 +7779,11 @@ void mage_t::vision_of_perfection_proc()
       }
       else
       {
-        secondary->trigger( 1, buff_t::DEFAULT_VALUE(), -1.0, secondary_duration );
+        secondary->trigger( secondary_duration );
       }
     }
+    // TODO: This probably isn't intended
+    buffs.rune_of_power->trigger();
   }
 }
 
@@ -7941,7 +7937,7 @@ void mage_t::trigger_icicle_gain( player_t* icicle_target, action_t* icicle_acti
     trigger_icicle( icicle_target );
 
   buffs.icicles->trigger();
-  icicles.push_back( { icicle_action, make_event( sim, buffs.icicles->buff_duration, [ this ]
+  icicles.push_back( { icicle_action, make_event( sim, buffs.icicles->buff_duration(), [ this ]
   {
     buffs.icicles->decrement();
     icicles.erase( icicles.begin() );
@@ -7956,7 +7952,7 @@ void mage_t::trigger_evocation( timespan_t duration_override, bool hasted )
 
   timespan_t duration = duration_override;
   if ( duration <= 0_ms )
-    duration = buffs.evocation->buff_duration;
+    duration = buffs.evocation->buff_duration();
 
   if ( hasted )
   {

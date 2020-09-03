@@ -1005,23 +1005,21 @@ struct bba_cb_t : public dbc_proc_callback_t
     return timespan_t::from_seconds( cost * std::get<c>( resource_tuple->second ) );
   }
 
-  void trigger( action_t* a, void* raw_state ) override
+  void trigger( action_t* a, action_state_t* state ) override
   {
-    auto state = reinterpret_cast<action_state_t*>( raw_state );
-
     if ( state->action->last_resource_cost == 0 )
     {
       // Custom call here for BoS ticks and SotR because they don't consume resources
       // The callback should probably rather check for ticks of breath_of_sindragosa, but this will do for now
       if ( state->action->data().id() == 155166u || state->action->data().id() == 53600u )
       {
-        dbc_proc_callback_t::trigger( a, raw_state );
+        dbc_proc_callback_t::trigger( a, state );
       }
 
       return;
     }
 
-    dbc_proc_callback_t::trigger( a, raw_state );
+    dbc_proc_callback_t::trigger( a, state );
   }
 
   void reset() override
@@ -3040,11 +3038,11 @@ void items::lurkers_insidious_gift( special_effect_t& effect )
   timespan_t duration_override = effect.player->sim->bfa_opts.lurkers_insidious_gift_duration;
 
   // If the overriden duration is out of bounds, yell at the user
-  if ( duration_override > insidious_gift_buff->buff_duration )
+  if ( duration_override > insidious_gift_buff->buff_duration() )
   {
     effect.player->sim->error(
         "{} Lurker's Insidious duration set higher than the buff's maximum duration, setting to {} seconds",
-        effect.player->name(), insidious_gift_buff->buff_duration.total_seconds() );
+        effect.player->name(), insidious_gift_buff->buff_duration().total_seconds() );
   }
   // If the override is valid and different from 0, replace the buff's duration
   else if ( duration_override > 0_ms )
@@ -3077,12 +3075,12 @@ void items::abyssal_speakers_gauntlets( special_effect_t& effect )
       timespan_t duration_override = effect.player->sim->bfa_opts.abyssal_speakers_gauntlets_shield_duration;
 
       // If the overriden duration is out of bounds, yell at the user
-      if ( duration_override > buff_duration )
+      if ( duration_override > buff_duration() )
       {
         effect.player->sim->error(
             "{} Abyssal Speaker's Gauntlets duration set higher than the buff's maximum duration, setting to {} "
             "seconds",
-            effect.player->name(), buff_duration.total_seconds() );
+            effect.player->name(), buff_duration().total_seconds() );
       }
       // If the override is valid and different from 0, replace the buff's duration
       else if ( duration_override > 0_ms )
@@ -3136,11 +3134,11 @@ void items::trident_of_deep_ocean( special_effect_t& effect )
       timespan_t duration_override = effect.player->sim->bfa_opts.trident_of_deep_ocean_duration;
 
       // If the overriden duration is out of bounds, yell at the user
-      if ( duration_override > buff_duration )
+      if ( duration_override > buff_duration() )
       {
         effect.player->sim->error(
             "{} Trident of deep ocan duration set higher than the buff's maximum duration, setting to {} seconds",
-            effect.player->name(), buff_duration.total_seconds() );
+            effect.player->name(), buff_duration().total_seconds() );
       }
       // If the override is valid and different from 0, replace the buff's duration
       else if ( duration_override > 0_ms )
@@ -3179,11 +3177,11 @@ void items::legplates_of_unbound_anguish( special_effect_t& effect )
     {
     }
 
-    void trigger( action_t* a, void* call_data ) override
+    void trigger( action_t* a, action_state_t* s ) override
     {
       if ( rng().roll( a->sim->bfa_opts.legplates_of_unbound_anguish_chance ) )
       {
-        dbc_proc_callback_t::trigger( a, call_data );
+        dbc_proc_callback_t::trigger( a, s );
       }
     }
   };
@@ -3591,16 +3589,15 @@ void items::leviathans_lure( special_effect_t& effect )
     {
     }
 
-    void trigger( action_t* a, void* cd ) override
+    void trigger( action_t* a, action_state_t* s ) override
     {
-      auto s  = static_cast<action_state_t*>( cd );
       auto td = listener->get_target_data( s->target );
       assert( td );
       assert( td->debuff.luminous_algae );
 
       // adjust the rppm before triggering
       rppm->set_modifier( 1.0 + td->debuff.luminous_algae->check_value() );
-      dbc_proc_callback_t::trigger( a, cd );
+      dbc_proc_callback_t::trigger( a, s );
     }
 
     void execute( action_t* a, action_state_t* s ) override
@@ -3895,7 +3892,7 @@ void items::azsharas_font_of_power( special_effect_t& effect )
       // how long you channel for (rounded down to seconds)
       auto channel = std::min( 4_s, timespan_t::from_seconds( static_cast<int>( time.total_seconds() ) ) );
       // total duration of the buff from channeling
-      auto total = buff->buff_duration * ( channel.total_seconds() + 1 );
+      auto total = buff->buff_duration() * ( channel.total_seconds() + 1 );
       // actual duration of the buff you'll get in combat
       auto actual = total + channel - time;
       // cooldown on effect/trinket at start of combat
@@ -3968,7 +3965,7 @@ void items::azsharas_font_of_power( special_effect_t& effect )
       proc_t::tick( d );
 
       buff->trigger( 1, buff_t::DEFAULT_VALUE(), 1.0,
-                     ( d->current_tick == 1 ? buff->buff_duration : base_tick_time ) + buff->buff_duration );
+                     ( d->current_tick == 1 ? buff->buff_duration() : base_tick_time ) + buff->buff_duration() );
     }
 
     void last_tick( dot_t* d ) override
@@ -4113,12 +4110,12 @@ void items::anuazshara_staff_of_the_eternal( special_effect_t& effect )
     {
     }
 
-    void trigger( action_t* a, void* cd ) override
+    void trigger( action_t* a, action_state_t* s ) override
     {
       if ( lockout->check() )
         return;
 
-      dbc_proc_callback_t::trigger( a, cd );
+      dbc_proc_callback_t::trigger( a, s );
     }
   };
 
@@ -4324,12 +4321,10 @@ void items::ashvanes_razor_coral( special_effect_t& effect )
     {
     }
 
-    void trigger( action_t* a, void* cd ) override
+    void trigger( action_t* a, action_state_t* s ) override
     {
-      auto s = static_cast<action_state_t*>( cd );
-
       if ( action->debuff && s && action->debuff->player == s->target && action->debuff->check() )
-        dbc_proc_callback_t::trigger( a, cd );
+        dbc_proc_callback_t::trigger( a, s );
     }
 
     void execute( action_t* a, action_state_t* s ) override
@@ -4415,15 +4410,13 @@ void items::dribbling_inkpod( special_effect_t& effect )
     {
     }
 
-    void trigger( action_t* a, void* cd ) override
+    void trigger( action_t* a, action_state_t* s ) override
     {
-      auto s = static_cast<action_state_t*>( cd );
-
       // Conductive Ink shouldn't be able to proc on the caster (happens when a positive effect like a heal hits the
       // player)
       if ( s->target->health_percentage() > hp_pct && s->target != a->player )
       {
-        dbc_proc_callback_t::trigger( a, cd );
+        dbc_proc_callback_t::trigger( a, s );
       }
     }
 
@@ -4448,16 +4441,15 @@ void items::dribbling_inkpod( special_effect_t& effect )
     {
     }
 
-    void trigger( action_t* a, void* cd ) override
+    void trigger( action_t* a, action_state_t* s ) override
     {
-      auto s  = static_cast<action_state_t*>( cd );
       auto td = listener->get_target_data( s->target );
       assert( td );
       assert( td->debuff.conductive_ink );
 
       if ( td->debuff.conductive_ink->check() && s->target->health_percentage() <= hp_pct )
       {
-        dbc_proc_callback_t::trigger( a, cd );
+        dbc_proc_callback_t::trigger( a, s );
       }
     }
 
@@ -4578,7 +4570,7 @@ void items::divers_folly( special_effect_t& effect )
     {
     }
 
-    void trigger( action_t* a, void* s ) override
+    void trigger( action_t* a, action_state_t* s ) override
     {
       // Doesn't proc when buff is up, and doesn't seem to trigger rppm neither
       if ( listener->buffs.bioelectric_charge->check() )
@@ -4622,7 +4614,7 @@ void items::divers_folly( special_effect_t& effect )
     {
     }
 
-    void trigger( action_t* a, void* s ) override
+    void trigger( action_t* a, action_state_t* s ) override
     {
       listener->sim->print_debug( "Bioelectric Charge (Diver's Folly) discharged for {} damage!",
                                   proc_action->base_dd_min );
@@ -4891,7 +4883,7 @@ void items::subroutine_recalibration( special_effect_t& effect )
     {
     }
 
-    void trigger( action_t* a, void* call_data ) override
+    void trigger( action_t* a, action_state_t* s ) override
     {
       if ( a->background )
       {
@@ -4912,7 +4904,7 @@ void items::subroutine_recalibration( special_effect_t& effect )
 
       if ( ++casts >= req_casts )
       {
-        dbc_proc_callback_t::trigger( a, call_data );
+        dbc_proc_callback_t::trigger( a, s );
         casts = 0;
       }
     }
@@ -5312,11 +5304,11 @@ void items::logic_loop_of_division( special_effect_t& effect )
     {
     }
 
-    void trigger( action_t* a, void* s ) override
+    void trigger( action_t* a, action_state_t* state ) override
     {
       if ( listener->position() == POSITION_BACK || listener->position() == POSITION_RANGED_BACK )
       {
-        logic_loop_callback_t::trigger( a, s );
+        logic_loop_callback_t::trigger( a, state );
       }
     }
   };
@@ -5349,7 +5341,7 @@ void items::logic_loop_of_recursion( special_effect_t& effect )
     {
     }
 
-    void trigger( action_t* a, void* s ) override
+    void trigger( action_t* a, action_state_t* s ) override
     {
       int this_id = a->internal_id;
       auto it     = range::find( list, a->target, &llor_tracker_t::target );
@@ -5396,7 +5388,7 @@ void items::logic_loop_of_maintenance( special_effect_t& effect )
     {
     }
 
-    void trigger( action_t* a, void* s ) override
+    void trigger( action_t* a, action_state_t* s ) override
     {
       if ( listener->health_percentage() < 50 )
       {
@@ -5631,7 +5623,7 @@ void items::voidtwisted_titanshard( special_effect_t& effect )
     buff = make_buff<stat_buff_t>( effect.player, "void_shroud", effect.player->find_spell( 315774 ), effect.item );
 
     timespan_t duration_override =
-        buff->buff_duration * effect.player->sim->bfa_opts.voidtwisted_titanshard_percent_duration;
+        buff->buff_duration() * effect.player->sim->bfa_opts.voidtwisted_titanshard_percent_duration;
 
     buff->set_duration( duration_override );
   }
@@ -5767,10 +5759,9 @@ struct shredded_psyche_cb_t : public dbc_proc_callback_t
   {
   }
 
-  void trigger( action_t* a, void* call_data ) override
+  void trigger( action_t* a, action_state_t* state ) override
   {
-    const action_state_t* s = static_cast<const action_state_t*>( call_data );
-    if ( s->target != target )
+    if ( state->target != target )
     {
       return;
     }
@@ -5780,7 +5771,7 @@ struct shredded_psyche_cb_t : public dbc_proc_callback_t
     if ( !debuff->check() )
       return;
 
-    dbc_proc_callback_t::trigger( a, call_data );
+    dbc_proc_callback_t::trigger( a, state );
   }
 
   void execute( action_t* /* a */, action_state_t* trigger_state ) override

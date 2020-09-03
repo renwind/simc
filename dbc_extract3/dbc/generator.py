@@ -1421,6 +1421,10 @@ class SpellDataGenerator(DataGenerator):
          316835,
          # Searing Breath damage
          316704,
+         # Shadowlands
+         # Soulbinds
+         320130, 320212, # Social Butterfly vers buff (night fae/dreamweaver)
+         342181, 342183, # Embody the Construct damage/heal (necrolord/emeni)
         ),
 
         # Warrior:
@@ -1472,6 +1476,9 @@ class SpellDataGenerator(DataGenerator):
             ( 275483, 0 ),          # Inner Light azerite trait damge
             ( 184689, 0 ),          # Shield of Vengeance damage proc
             ( 286232, 0 ),          # Light's Decree damage proc
+            ( 339669, 0 ),          # Seal of Command
+            ( 339376, 0 ),          # Truth's Wake
+            ( 339538, 0 ),          # TV echo
         ),
 
         # Hunter:
@@ -1540,6 +1547,19 @@ class SpellDataGenerator(DataGenerator):
             ( 130493, 0 ),          # Nightstalker dmg increase driver
             ( 227151, 0 ),          # Symbols of Death Rank 2 autocrit buff
             ( 328082, 0 ),          # Eviscerate rank 2 shadow damage spell
+            ( 341541, 0 ),          # Sinister Strike third attack from Triple Threat conduit
+            ( 328306, 0 ),          # Sepsis expiry direct damage hit
+            ( 323660, 0 ),          # Slaughter instant damage
+            ( 323558, 0 ), ( 323559, 0 ), ( 323560, 0 ), # Echoing Reprimand buffs
+            ( 324074, 0 ), ( 341277, 0 ), # Serrated Bone Spike secondary instant damage spells
+            ( 340582, 0 ), ( 340583, 0 ), ( 340584, 0 ), # Guile Charm legendary buffs
+            ( 340600, 0 ), ( 340601, 0 ), ( 340603, 0 ), # Finality legendary buffs
+            ( 341111, 0 ),          # Akaari's Soul Fragment legendary debuff
+            ( 340587, 0 ),          # Concealed Blunderbuss legendary buff
+            ( 340573, 0 ),          # Greenskin's Wickers legendary buff
+            ( 340431, 0 ),          # Doomblade legendary debuff
+            ( 343173, 0 ),          # Premeditation buff
+            ( 319190, 0 ),          # Shadow Vault shadow damage spell
         ),
 
         # Priest:
@@ -1557,6 +1577,7 @@ class SpellDataGenerator(DataGenerator):
             ( 275726, 0 ),          # Whispers of the damned insanity gain
             ( 288342, 0 ),          # Thought Harvester trigger buff for Mind Sear
             ( 336142, 5 ),          # Shadowflame Prism legendary effect DMG Component
+            ( 343144, 0 ),          # Dissonant Echoes free Void Bolt proc
         ),
 
         # Death Knight:
@@ -1747,7 +1768,11 @@ class SpellDataGenerator(DataGenerator):
           ( 272012, 5 ),	# Illidari Satyr - Shadow Slash
           ( 272131, 5 ),	# Eye of Gul'dan - Eye of Gul'dan
           ( 267964, 0 ),	# new soul strike?
-          ( 289367, 1 )		# Pandemic Invocation Damage
+          ( 289367, 1 ),    # Pandemic Invocation Damage
+          ( 265391, 3 ),    # Roaring Blaze Debuff
+          ( 266087, 3 ),    # Rain of Chaos Buff
+          ( 339784, 2 ),    # Tyrant's Soul Buff
+          ( 337142, 2 )     # Grim Inquisitor's Dread Calling Buff
         ),
 
         # Monk:
@@ -1767,6 +1792,7 @@ class SpellDataGenerator(DataGenerator):
           ( 227291, 1 ), # Niuzao pet Stomp
           # Mistweaver
           ( 228649, 2 ), # Teachings of the Monastery - Blackout Proc
+          ( 343820, 2 ), # Invoke Chi-Ji, the Red Crane - Enveloping Mist cast reduction
           # Windwalker
           ( 115057, 3 ), # Flying Serpent Kick Movement spell
           ( 116768, 3 ), # Combo Breaker: Blackout Kick
@@ -1774,6 +1800,7 @@ class SpellDataGenerator(DataGenerator):
           ( 125174, 3 ), # Touch of Karma redirect buff
           ( 195651, 3 ), # Crosswinds Artifact trait trigger spell
           ( 196061, 3 ), # Crosswinds Artifact trait damage spell
+          ( 196742, 3 ), # Whirling Dragon Punch Buff
           ( 211432, 3 ), # Tier 19 4-piece DPS Buff
           ( 220358, 3 ), # Cyclone Strikes info
           ( 228287, 3 ), # Spinning Crane Kick's Mark of the Crane debuff
@@ -1782,21 +1809,28 @@ class SpellDataGenerator(DataGenerator):
           ( 252768, 3 ), # Tier 21 2-piece DPS effect
           ( 261682, 3 ), # Chi Burst Chi generation cap
           ( 285594, 3 ), # Good Karma Healing Spell
-		  ( 290461, 3 ), # Reverse Harm Damage
-          # Legendary
-          ( 213114, 3 ), # Hidden Master's Forbidden Touch buff
+		      ( 290461, 3 ), # Reverse Harm Damage
           # Azerite Traits
           ( 278710, 3 ), # Swift Roundhouse
           ( 278767, 1 ), # Training of Niuzao buff
           ( 285958, 1 ), # Straight, No Chaser trait
+          ( 285959, 1 ), # Straight, No Chaser buff
           ( 286585, 3 ), # Dance of Chi-Ji trait
           ( 286586, 3 ), # Dance of Chi-Ji RPPM
           ( 286587, 3 ), # Dance of Chi-Ji buff
           ( 287055, 3 ), # Fury of Xuen trait
           ( 287062, 3 ), # Fury of Xuen buff
           ( 287063, 3 ), # Fury of Xuen proc
+          ( 287831, 2 ), # Secret Infusion Crit Buff
+          ( 287835, 2 ), # Secret Infusion Haste Buff
+          ( 287836, 2 ), # Secret Infusion Mastery Buff
+          ( 287837, 2 ), # Secret Infusion Versatility Buff
           ( 288634, 3 ), # Glory of the Dawn trait
           ( 288636, 3 ), # Glory of the Dawn proc
+          # Conduits
+          ( 336874, 0 ), # Fortifying Ingredients
+          # Shadowland Legendaries
+          ( 338141, 1 ), # Flaming Kicks Legendary damage
         ),
 
         # Druid:
@@ -2077,6 +2111,7 @@ class SpellDataGenerator(DataGenerator):
     # Effect subtype, field name
     _label_whitelist = [
         ( 218, 'misc_value_2' ),
+        ( 219, 'misc_value_2' ),
     ]
 
     _spell_blacklist = [
@@ -2296,7 +2331,12 @@ class SpellDataGenerator(DataGenerator):
             if not enabled_effects[effect.index]:
                 continue
 
-            trigger_spell = effect.trigger_spell
+            # Treat 'Override Action Spell' values as trigger spells for generation
+            if effect.type == 6 and effect.sub_type == 332:
+                trigger_spell = effect.base_value
+            else:
+                trigger_spell = effect.trigger_spell
+
             if trigger_spell > 0:
                 if trigger_spell in filter_list.keys():
                     continue
@@ -2893,11 +2933,11 @@ class SpellDataGenerator(DataGenerator):
             # Add spell flags
             fields += [ '{ %s }' % ', '.join(misc.field('flags_1', 'flags_2', 'flags_3', 'flags_4',
                 'flags_5', 'flags_6', 'flags_7', 'flags_8', 'flags_9', 'flags_10', 'flags_11',
-                'flags_12', 'flags_13', 'flags_14')) ]
+                'flags_12', 'flags_13', 'flags_14', 'flags_15')) ]
             # Note, bunch up the flags checking into one field,
             hotfix.add(misc,
                 (('flags_1', 'flags_2', 'flags_3',  'flags_4',  'flags_5',  'flags_6',  'flags_7',
-                  'flags_8', 'flags_9', 'flags_10', 'flags_11', 'flags_12', 'flags_13', 'flags_14'), 35))
+                  'flags_8', 'flags_9', 'flags_10', 'flags_11', 'flags_12', 'flags_13', 'flags_14', 'flags_15'), 35))
 
             fields += [ '{ %s }' % ', '.join(spell.get_link('class_option').field('flags_1', 'flags_2', 'flags_3', 'flags_4')) ]
             fields += spell.get_link('class_option').field('family')
