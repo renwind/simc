@@ -204,57 +204,47 @@ std::string get_cache_directory()
 #pragma warning( pop )
 #endif
 
-return s;
+  return s;
 }
 
 // RAII-wrapper for http cache load / save
 struct cache_initializer_t {
-	cache_initializer_t(const std::string& fn) :
-		_file_name(fn)
-	{
-		http::cache_load(_file_name);
-	}
-	~cache_initializer_t()
-	{
-		http::cache_save(_file_name);
-	}
+  cache_initializer_t( const std::string& fn ) :
+    _file_name( fn )
+  { http::cache_load( _file_name ); }
+  ~cache_initializer_t()
+  { http::cache_save( _file_name ); }
 private:
-	std::string _file_name;
+  std::string _file_name;
 };
 
 #if !defined( SC_NO_NETWORKING )
 struct apitoken_initializer_t
 {
-	apitoken_initializer_t()
-	{
-		bcp_api::token_load();
-	}
+  apitoken_initializer_t()
+  { bcp_api::token_load(); }
 
-	~apitoken_initializer_t()
-	{
-		bcp_api::token_save();
-	}
+  ~apitoken_initializer_t()
+  { bcp_api::token_save(); }
 };
 #endif
 
 struct special_effect_initializer_t
 {
-	special_effect_initializer_t()
-	{
-		unique_gear::register_special_effects();
-		unique_gear::sort_special_effects();
-	}
+  special_effect_initializer_t()
+  {
+    unique_gear::register_special_effects();
+    unique_gear::sort_special_effects();
+  }
 
-	~special_effect_initializer_t()
-	{
-		unique_gear::unregister_special_effects();
-	}
+  ~special_effect_initializer_t()
+  { unique_gear::unregister_special_effects(); }
 };
 
 void print_version_info(const dbc_t& dbc)
 {
-	std::cout << util::version_info_str(&dbc) << std::endl << std::endl;
-	std::flush(std::cout);
+  std::cout << util::version_info_str( &dbc ) << std::endl << std::endl;
+  std::flush(std::cout);
 }
 
 } // anonymous namespace ====================================================
@@ -285,9 +275,9 @@ int sim_t::main(const std::vector<std::string>& args)
 		//element_nga_conduit_talbe.close();
 
 
-		std::ofstream frost_nga_skill_talbe("f:/frostdk_nga_skill_talbe.txt");
-		frost_nga_skill_talbe << nga_to_skill_table_dk(*dbc, 0, true);
-		frost_nga_skill_talbe.close();
+		//std::ofstream frost_nga_skill_talbe("f:/frostdk_nga_skill_talbe.txt");
+		//frost_nga_skill_talbe << nga_to_skill_table_dk(*dbc, 0, true);
+		//frost_nga_skill_talbe.close();
 		
 
 		//std::ofstream shadow_nga_skill_talbe("f:/shadow_nga_skill_talbe.txt");
@@ -299,18 +289,19 @@ int sim_t::main(const std::vector<std::string>& args)
 		//discipline_nga_skill_talbe.close();
 
 
-		std::ofstream balance_nga_skill_talbe("f:/balance_nga_skill_talbe.txt");
-		balance_nga_skill_talbe << nga_to_skill_table_druid(*dbc, 0, true);
-		balance_nga_skill_talbe.close();
+		//std::ofstream balance_nga_skill_talbe("f:/balance_nga_skill_talbe.txt");
+		//balance_nga_skill_talbe << nga_to_skill_table_druid(*dbc, 0, true);
+		//balance_nga_skill_talbe.close();
 
 		std::ofstream element_nga_skill_talbe("f:/element_nga_skill_talbe.txt");
 		//element_nga_skill_talbe << nga_to_skill_table(*dbc,0);
 		element_nga_skill_talbe << nga_to_skill_table_shaman(*dbc, 0, true);		
 		element_nga_skill_talbe.close();
 
-		//std::ofstream enhance_nga_skill_talbe("f:/enhance_nga_skill_talbe.txt");
+		std::ofstream enhance_nga_skill_talbe("f:/enhance_nga_skill_talbe.txt");
 		//enhance_nga_skill_talbe << nga_to_skill_table(*dbc,1);
-		//enhance_nga_skill_talbe.close();
+		enhance_nga_skill_talbe << nga_to_skill_table_shaman(*dbc, 1, true);
+		enhance_nga_skill_talbe.close();
 
 		std::ofstream element_nga_legendary_talbe("f:/element_nga_to_lengendary_table.txt");
 		element_nga_legendary_talbe << nga_to_lengendary_table(*dbc, 0);

@@ -26,16 +26,6 @@ static constexpr std::array<util::string_view, 4> _spell_type_map { {
   "None", "Magic", "Melee", "Ranged"
 } };
 
-static constexpr std::array<util::string_view, 7> _school_map { {
-  "Physical",
-  "Holy",
-  "Fire",
-  "Nature",
-  "Frost",
-  "Shadow",
-  "Arcane",
-} };
-
 static constexpr auto _hotfix_effect_map = util::make_static_map<unsigned, util::string_view>( {
   {  3, "Index" },
   {  4, "Type" },
@@ -608,6 +598,7 @@ static constexpr auto _effect_subtype_strings = util::make_static_map<unsigned, 
   { 200, "Modify Experience Gained from Kills"          },
   { 216, "Modify Casting Speed"                         },
   { 218, "Apply Percent Modifier w/ Label"              },
+  { 219, "Apply Flat Modifier w/ Label"                 },
   { 224, "Grant Talent"                                 },
   { 226, "Periodic Dummy"                               },
   { 228, "Stealth Detection"                            },
@@ -645,6 +636,7 @@ static constexpr auto _effect_subtype_strings = util::make_static_map<unsigned, 
   { 332, "Override Action Spell (Misc /w Base)"         },
   { 334, "Modify Auto Attack Critical Chance"           },
   { 339, "Modify Crit Chance% from Caster's Pets"       },
+  { 341, "Modify Cooldown Time (Category)"              },
   { 342, "Modify Ranged and Melee Attack Speed%"        },
   { 343, "Modify Auto Attack Damage Taken% from Caster" },
   { 344, "Modify Auto Attack Damage Done%"              },
@@ -682,7 +674,7 @@ static constexpr auto _effect_subtype_strings = util::make_static_map<unsigned, 
 } );
 
 static constexpr auto _category_effect_subtypes = util::make_static_set<unsigned> ( {
-  411, 453, 454, 457
+  341, 411, 453, 454, 457
 } );
 
 static constexpr auto _mechanic_strings = util::make_static_map<unsigned, util::string_view>( {
@@ -902,6 +894,7 @@ std::ostringstream& spell_info::effect_to_str( const dbc_t& dbc,
       case A_ADD_FLAT_MODIFIER:
       case A_ADD_PCT_MODIFIER:
       case A_ADD_PCT_LABEL_MODIFIER:
+      case A_ADD_FLAT_LABEL_MODIFIER:
         s << ": " << map_string( _property_type_strings, e -> misc_value1() );
         break;
       default:
@@ -1002,7 +995,8 @@ std::ostringstream& spell_info::effect_to_str( const dbc_t& dbc,
     if ( e -> subtype() == A_MOD_DAMAGE_DONE ||
          e -> subtype() == A_MOD_DAMAGE_TAKEN ||
          e -> subtype() == A_MOD_DAMAGE_PERCENT_DONE ||
-         e -> subtype() == A_MOD_DAMAGE_PERCENT_TAKEN )
+         e -> subtype() == A_MOD_DAMAGE_PERCENT_TAKEN ||
+         e -> subtype() == A_MOD_DAMAGE_FROM_CASTER )
       snprintf( tmp_buffer, sizeof( tmp_buffer ), "%#.x", e -> misc_value1() );
     else if ( e -> type() == E_ENERGIZE )
       snprintf( tmp_buffer, sizeof( tmp_buffer ), "%s", util::resource_type_string( util::translate_power_type( static_cast<power_e>( e -> misc_value1() ) ) ) );
@@ -1013,7 +1007,7 @@ std::ostringstream& spell_info::effect_to_str( const dbc_t& dbc,
 
   if ( e -> misc_value2() != 0 )
   {
-    if ( e -> subtype() == A_ADD_PCT_LABEL_MODIFIER )
+    if ( e -> subtype() == A_ADD_PCT_LABEL_MODIFIER || e -> subtype() == A_ADD_FLAT_LABEL_MODIFIER )
     {
       snprintf( tmp_buffer, sizeof( tmp_buffer ), "%d (Label)", e -> misc_value2() );
     }
@@ -1068,7 +1062,10 @@ std::ostringstream& spell_info::effect_to_str( const dbc_t& dbc,
 
   s << std::endl;
 
-  if ( e -> type() == E_APPLY_AURA && e -> subtype() == A_MOD_DAMAGE_PERCENT_DONE &&
+  if ( e -> type() == E_APPLY_AURA &&
+       ( e -> subtype() == A_MOD_DAMAGE_PERCENT_DONE ||
+         e -> subtype() == A_MOD_DAMAGE_PERCENT_TAKEN ||
+         e -> subtype() == A_MOD_DAMAGE_FROM_CASTER ) &&
        e -> misc_value1() != 0 )
   {
     s << "                   Affected School(s): ";
@@ -1079,12 +1076,10 @@ std::ostringstream& spell_info::effect_to_str( const dbc_t& dbc,
     else
     {
       std::vector<std::string> schools;
-      for ( size_t i = 0; i < _school_map.size(); ++i )
+      for ( school_e school = SCHOOL_NONE; school < SCHOOL_MAX_PRIMARY; school++ )
       {
-        if ( e -> misc_value1() & ( 1 << i ) )
-        {
-          schools.emplace_back( _school_map[ i ] );
-        }
+        if ( e -> misc_value1() & dbc::get_school_mask( school ) )
+          schools.emplace_back( util::inverse_tokenize( util::school_type_string( school ) ) );
       }
 
       fmt::print( s, "{}", fmt::join( schools, ", " ) );
@@ -1107,7 +1102,8 @@ std::ostringstream& spell_info::effect_to_str( const dbc_t& dbc,
     s << std::endl;
   }
 
-  if ( e -> type() == E_APPLY_AURA && e -> subtype() == A_ADD_PCT_LABEL_MODIFIER )
+  if ( e -> type() == E_APPLY_AURA &&
+       ( e -> subtype() == A_ADD_PCT_LABEL_MODIFIER || e -> subtype() == A_ADD_FLAT_LABEL_MODIFIER ) )
   {
     auto affected_spells = dbc.spells_by_label( e -> misc_value2() );
     s << "                   Affected Spells (Label): ";
@@ -1178,8 +1174,12 @@ std::ostringstream& spell_info::effect_to_str( const dbc_t& dbc,
 
 std::string spell_info::to_str( const dbc_t& dbc, const spell_data_t* spell, int level )
 {
+
   std::ostringstream s;
   player_e pt = PLAYER_NONE;
+
+  if (spell->name_cstr() == NULL)
+	  return s.str();
 
   if ( spell -> scaling_class() != 0 && spell -> level() > static_cast< unsigned >( level ) )
   {
@@ -1190,10 +1190,13 @@ std::string spell_info::to_str( const dbc_t& dbc, const spell_data_t* spell, int
   const spelltext_data_t& spell_text = dbc.spell_text( spell -> id() );
   const spelldesc_vars_data_t& spelldesc_vars = dbc.spell_desc_vars( spell -> id() );
 
-  std::string name_str = spell -> name_cstr();
-  if ( spell_text.rank() )
-    name_str += " (desc=" + std::string( spell_text.rank() ) + ")";
-  s <<   "Name             : " << name_str << " (id=" << spell -> id() << ") " << spell_flags( spell ) << std::endl;
+  if (spell->name_cstr())
+  {
+	  std::string name_str = spell->name_cstr();
+	  if (spell_text.rank())
+		  name_str += " (desc=" + std::string(spell_text.rank()) + ")";
+	  s << "Name             : " << name_str << " (id=" << spell->id() << ") " << spell_flags(spell) << std::endl;
+  }
 
   const auto hotfixes = spell_data_t::hotfixes( *spell, dbc.ptr );
   if ( hotfixes.size() > 0 && hotfixes.front().field_id == hotfix::NEW_ENTRY )
@@ -1622,7 +1625,20 @@ std::string spell_info::to_str( const dbc_t& dbc, const spell_data_t* spell, int
   const auto& conduit = conduit_entry_t::find_by_spellid( spell->id(), dbc.ptr );
   if ( conduit.spell_id && conduit.spell_id == spell->id() )
   {
-    s << "Conduit Id       : " << conduit.id << std::endl;
+    s << "Conduit Id       : " << conduit.id;
+
+    auto ranks = conduit_rank_entry_t::find( conduit.id, dbc.ptr );
+    std::vector<std::string> rank_str;
+    range::for_each( ranks, [&rank_str]( const conduit_rank_entry_t& entry ) {
+      rank_str.emplace_back( fmt::format( "{}", entry.value ) );
+    } );
+
+    if ( ranks.size() )
+    {
+      s << fmt::format( " (values={})", util::string_join( rank_str, ", " ) );
+    }
+
+    s << std::endl;
   }
 
   if ( spell -> proc_flags() > 0 )
