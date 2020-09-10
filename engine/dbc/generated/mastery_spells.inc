@@ -1,4 +1,4 @@
-﻿// Mastery abilities, wow build 9.0.1.35755
+﻿// Mastery abilities, wow build 9.0.1.35854
 static const std::array<mastery_spell_entry_t, 36> __mastery_spell_data { {
   {   62, 190740 }, // 精通：法力专家 (奥术 Mage)
   {   63,  12846 }, // 精通：点燃 (火焰 Mage)

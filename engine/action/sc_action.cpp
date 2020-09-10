@@ -1092,10 +1092,11 @@ timespan_t action_t::travel_time() const
   return timespan_t::from_seconds( t );
 }
 
-double action_t::total_crit_bonus( action_state_t* state ) const
+double action_t::total_crit_bonus( const action_state_t* state ) const
 {
   double crit_multiplier_buffed = crit_multiplier * composite_player_critical_multiplier( state );
-  double base_crit_bonus        = crit_bonus;
+  
+  double base_crit_bonus = crit_bonus;
   if ( sim->pvp_crit )
     base_crit_bonus -= 0.5;  // Players in pvp take 150% critical hits baseline.
   if ( player->buffs.amplification )
@@ -1103,13 +1104,14 @@ double action_t::total_crit_bonus( action_state_t* state ) const
   if ( player->buffs.amplification_2 )
     base_crit_bonus += player->passive_values.amplification_2;
 
-  double bonus =
-      ( ( 1.0 + base_crit_bonus ) * crit_multiplier_buffed - 1.0 ) * composite_crit_damage_bonus_multiplier();
+  double damage_bonus = composite_crit_damage_bonus_multiplier() * composite_target_crit_damage_bonus_multiplier( state->target );
+
+  double bonus = ( ( 1.0 + base_crit_bonus ) * crit_multiplier_buffed - 1.0 ) * damage_bonus;
 
   if ( sim->debug )
   {
     sim->print_debug( "{} crit_bonus for {}: total={} base={} mult_buffed={} damage_bonus_mult={}", *player, *this,
-                      bonus, crit_bonus, crit_multiplier_buffed, composite_crit_damage_bonus_multiplier() );
+                      bonus, crit_bonus, crit_multiplier_buffed, damage_bonus );
   }
 
   return bonus;
@@ -1318,7 +1320,12 @@ double action_t::calculate_crit_damage_bonus( action_state_t* state ) const
 {
   if ( state->result == RESULT_CRIT )
   {
-    state->result_total *= 1.0 + total_crit_bonus( state );
+    state->result_crit_bonus = total_crit_bonus( state );
+    state->result_total *= 1.0 + state->result_crit_bonus;
+  }
+  else
+  {
+    state->result_crit_bonus = 1.0;
   }
 
   return state->result_total;
@@ -4683,7 +4690,7 @@ void action_t::apply_affecting_effect( const spelleffect_data_t& effect )
 
   // Applies "Flat Modifier" and "Flat Modifier w/ Label" auras
   auto apply_flat_modifier = [ this ]( const spelleffect_data_t& effect ) {
-    switch ( effect.misc_value1() )
+    switch ( effect.property_type() )
     {
       case P_DURATION:
         if ( base_tick_time > timespan_t::zero() )
@@ -4746,11 +4753,29 @@ void action_t::apply_affecting_effect( const spelleffect_data_t& effect )
 
   // Applies "Percent Modifier" and "Percent Modifier w/ Label" auras
   auto apply_percent_modifier = [ this ]( const spelleffect_data_t& effect ) {
-    switch ( effect.misc_value1() )
+    switch ( effect.property_type() )
     {
       case P_GENERIC:
         base_dd_multiplier *= 1.0 + effect.percent();
         sim->print_debug( "{} base_dd_multiplier modified by {}%", *this, effect.base_value() );
+        break;
+
+      case P_DURATION:
+        if ( base_tick_time > timespan_t::zero() )
+        {
+          dot_duration *= 1.0 + effect.percent();
+          sim->print_debug( "{} duration modified by {}%", *this, effect.base_value() );
+        }
+        if ( ground_aoe_duration > timespan_t::zero() )
+        {
+          ground_aoe_duration *= 1.0 + effect.percent();
+          sim->print_debug( "{} ground aoe duration modified by {}%", *this, effect.base_value() );
+        }
+        break;
+
+      case P_RADIUS:
+        radius *= 1.0 + effect.percent();
+        sim->print_debug( "{} radius modified by {}%", *this, effect.base_value() );
         break;
 
       case P_COOLDOWN:
@@ -4764,6 +4789,14 @@ void action_t::apply_affecting_effect( const spelleffect_data_t& effect )
         base_costs[ resource_current ] *= 1.0 + effect.percent();
         sim->print_debug( "{} base resource cost for resource {} modified by {}", *this,
                           resource_current, effect.base_value() );
+        break;
+
+      case P_TICK_TIME:
+        if ( base_tick_time > timespan_t::zero() )
+        {
+          base_tick_time *= 1.0 + effect.percent();
+          sim->print_debug( "{} base tick time modified by {}%", *this, effect.base_value() );
+        }
         break;
 
       case P_TICK_DAMAGE:
@@ -4826,7 +4859,7 @@ void action_t::apply_affecting_effect( const spelleffect_data_t& effect )
 
       case A_ADD_PCT_LABEL_MODIFIER:
         apply_percent_modifier( effect );
-        switch ( effect.misc_value1() )
+        switch ( effect.property_type() )
         {
           case P_EFFECT_1:
             apply_effect_n_multiplier( effect, 1 );

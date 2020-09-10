@@ -1,4 +1,4 @@
-﻿// Azerite powers, wow build 9.0.1.35755
+﻿// Azerite powers, wow build 9.0.1.35854
 static const std::array<azerite_power_entry_t, 379> __azerite_power_data { {
   {  13, 263978,  4775, "艾泽里特强化"                            , 0 },
   {  14, 268594,     0, "远行者"                               , 1 },
@@ -381,7 +381,7 @@ static const std::array<azerite_power_entry_t, 379> __azerite_power_data { {
   { 582, 317137,     0, "黑暗之心"                              , 3 },
 } };
 
-// Azerite Essences, wow build 9.0.1.35755
+// Azerite Essences, wow build 9.0.1.35854
 static const std::array<azerite_essence_entry_t, 28> __azerite_essence_data { {
   {  2,   1, "艾泽拉斯的不朽赐福"                    },
   {  3,   1, "沉抑之球"                         },
@@ -413,7 +413,7 @@ static const std::array<azerite_essence_entry_t, 28> __azerite_essence_data { {
   { 37,   2, "无形虚空"                         },
 } };
 
-// Azerite Essence Powers, wow build 9.0.1.35755
+// Azerite Essence Powers, wow build 9.0.1.35854
 static const std::array<azerite_essence_power_entry_t, 112> __azerite_essence_power_data { {
   {   5,   2,   1, { 293019, 294668 }, { 293019, 294668 } }, // 艾泽拉斯的不朽赐福
   {   6,   2,   2, { 298080, 298082 }, { 294653, 294687 } }, // 艾泽拉斯的不朽赐福

@@ -1,4 +1,4 @@
-﻿// Racial abilities, wow build 9.0.1.35755
+﻿// Racial abilities, wow build 9.0.1.35854
 static const std::array<racial_spell_entry_t, 163> __racial_spell_data { {
   { 0x0000000000000001, 0x00000000,  20598, "人类精魂"                               },
   { 0x0000000000000001, 0x00000000,  20599, "外交"                                 },

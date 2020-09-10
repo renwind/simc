@@ -141,22 +141,3 @@ env/
 
 # Visual Studio CMake settings
 CMakeSettings.json
-engine/dbc/generated_bak/active_spells.inc
-engine/dbc/generated_bak/azerite.inc
-engine/dbc/generated_bak/client_data_version.inc
-engine/dbc/generated_bak/covenant_data.inc
-engine/dbc/generated_bak/gem_data.inc
-engine/dbc/generated_bak/item_child.inc
-engine/dbc/generated_bak/item_data.inc
-engine/dbc/generated_bak/item_effect.inc
-engine/dbc/generated_bak/item_naming.inc
-engine/dbc/generated_bak/item_runeforge.inc
-engine/dbc/generated_bak/item_set_bonus.inc
-engine/dbc/generated_bak/mastery_spells.inc
-engine/dbc/generated_bak/racial_spells.inc
-engine/dbc/generated_bak/sc_scale_data.inc
-engine/dbc/generated_bak/sc_spec_list.inc
-engine/dbc/generated_bak/sc_talent_data.inc
-engine/dbc/generated_bak/specialization_spells.inc
-engine/dbc/generated_bak/spell_item_enchantment.inc
-engine/dbc/generated_bak/spelltext_data.inc

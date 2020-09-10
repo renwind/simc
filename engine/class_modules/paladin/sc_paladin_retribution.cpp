@@ -107,11 +107,61 @@ struct execution_sentence_t : public holy_power_consumer_t
     }
   }
 
-  double bonus_ta( const action_state_t* s ) const override
+  double calculate_tick_amount( action_state_t* state, double dot_multiplier ) const override
   {
-    double ta = holy_power_consumer_t::bonus_ta( s );
+    double amount = 0;
+
+    if ( base_ta( state ) == 0 && spell_tick_power_coefficient( state ) == 0 &&
+         attack_tick_power_coefficient( state ) == 0 )
+      return 0;
+
+    amount = floor( base_ta( state ) + 0.5 );
+    amount += bonus_ta( state );
+    amount += state->composite_spell_power() * spell_tick_power_coefficient( state );
+    amount += state->composite_attack_power() * attack_tick_power_coefficient( state );
+    amount *= state->composite_ta_multiplier();
+
+    double init_tick_amount = amount;
+
+    if ( !sim->average_range )
+      amount = floor( amount + rng().real() );
+
+    // Record raw amount to state
+    state->result_raw = amount;
+
+    amount *= dot_multiplier;
+
+    // This is the only piece that's different from normal calculate_tick_amount!
+    // Accumulated damage doesn't get the composite_ta_multiplier
+    amount += accumulated_damage( state );
+
+    // Record total amount to state
+    state->result_total = amount;
+
+    // Apply crit damage bonus immediately to periodic damage since there is no travel time (and
+    // subsequent impact).
+    amount = calculate_crit_damage_bonus( state );
+
+    if ( sim->debug )
+    {
+      sim->print_debug(
+          "{} tick amount for {} on {}: amount={} initial_amount={} base={} bonus={} accumulated={} s_mod={} s_power={} a_mod={} "
+          "a_power={} mult={}, tick_mult={}",
+          *player, *this, *state->target, amount, init_tick_amount, base_ta( state ), bonus_ta( state ), accumulated_damage( state ),
+          spell_tick_power_coefficient( state ), state->composite_spell_power(), attack_tick_power_coefficient( state ),
+          state->composite_attack_power(), state->composite_ta_multiplier(), dot_multiplier );
+    }
+
+    return amount;
+  }
+
+  double accumulated_damage( const action_state_t* s ) const
+  {
+    double ta = 0.0;
 
     double accumulated = td( s -> target ) -> debuff.execution_sentence -> get_accumulated_damage();
+
+    sim -> print_debug( "{}'s {} has accumulated {} total additional damage.", player -> name(), name(), accumulated );
 
     ta += accumulated * data().effectN( 2 ).percent();
 
@@ -609,7 +659,7 @@ void paladin_t::init_spells_retribution()
   talents.justicars_vengeance  = find_talent_spell( "Justicar's Vengeance" );
   talents.healing_hands        = find_talent_spell( "Healing Hands" );
 
-  talents.ret_sanctified_wrath = find_spell( 317866 );
+  talents.ret_sanctified_wrath = find_talent_spell( "Sanctified Wrath", PALADIN_RETRIBUTION ); // 317866
   talents.crusade              = find_talent_spell( "Crusade" );
   talents.final_reckoning      = find_talent_spell( "Final Reckoning" );
 

@@ -1273,6 +1273,7 @@ class SpellDataGenerator(DataGenerator):
          # 8.0 Galley Banquet food buffs
          259448, 259449, 259452, 259453,
          # 8.0 Bountiful Captain's Feast food buffs
+         # 9.0 Feast of Gluttonous Hedonism
          259454, 259455, 259456, 259457,
          # 8.1 Boralus Blood Sausage food buffs
          290469, 290467, 290468,
@@ -1425,6 +1426,7 @@ class SpellDataGenerator(DataGenerator):
          # Soulbinds
          320130, 320212, # Social Butterfly vers buff (night fae/dreamweaver)
          342181, 342183, # Embody the Construct damage/heal (necrolord/emeni)
+         332525, 341163, 341165, 332526, # Bron's Call to Action
         ),
 
         # Warrior:
@@ -1810,6 +1812,7 @@ class SpellDataGenerator(DataGenerator):
           ( 261682, 3 ), # Chi Burst Chi generation cap
           ( 285594, 3 ), # Good Karma Healing Spell
 		      ( 290461, 3 ), # Reverse Harm Damage
+		      ( 335913, 3 ), # Empowered Tiger Lightning Damage spell
           # Azerite Traits
           ( 278710, 3 ), # Swift Roundhouse
           ( 278767, 1 ), # Training of Niuzao buff
@@ -2027,80 +2030,80 @@ class SpellDataGenerator(DataGenerator):
     # http://github.com/mangos/mangos/blob/400/src/game/SharedDefines.h
     _effect_type_blacklist = [
         5,      # SPELL_EFFECT_TELEPORT_UNITS
-        #10,     # SPELL_EFFECT_HEAL
-        16,     # SPELL_EFFECT_QUEST_COMPLETE
-        18,     # SPELL_EFFECT_RESURRECT
-        25,     # SPELL_EFFECT_WEAPONS
-        39,     # SPELL_EFFECT_LANGUAGE
-        47,     # SPELL_EFFECT_TRADESKILL
-        50,     # SPELL_EFFECT_TRANS_DOOR
-        60,     # SPELL_EFFECT_PROFICIENCY
-        71,     # SPELL_EFFECT_PICKPOCKET
-        94,     # SPELL_EFFECT_SELF_RESURRECT
-        97,     # SPELL_EFFECT_SUMMON_ALL_TOTEMS
-        103,    # Grant reputation to faction
-        109,    # SPELL_EFFECT_SUMMON_DEAD_PET
-        110,    # SPELL_EFFECT_DESTROY_ALL_TOTEMS
-        118,    # SPELL_EFFECT_SKILL
-        126,    # SPELL_STEAL_BENEFICIAL_BUFF
-        131,    # Play sound
-        162,    # Select specialization
-        166,    # Grant currency
-        198,    # Play a scene
-        205,    # Quest choice stuff
-        219,    # Conversiation stuff
-        223,    # Various item bonus grants
-        225,    # Battle pet level grant
-        231,    # Follower experience grant
-        238,    # Increase skill
-        240,    # Artifact experience grant
-        242,    # Artifact experience grant
-        245,    # Upgrade heirloom
-        247,    # Add garrison mission
-        248,    # Rush orders for garrisons
-        249,    # Force equip an item
-        252,    # Some kind of teleport
-        255,    # Some kind of transmog thing
+        # #10,     # SPELL_EFFECT_HEAL
+        # 16,     # SPELL_EFFECT_QUEST_COMPLETE
+        # 18,     # SPELL_EFFECT_RESURRECT
+        # 25,     # SPELL_EFFECT_WEAPONS
+        # 39,     # SPELL_EFFECT_LANGUAGE
+        # 47,     # SPELL_EFFECT_TRADESKILL
+        # 50,     # SPELL_EFFECT_TRANS_DOOR
+        # 60,     # SPELL_EFFECT_PROFICIENCY
+        # 71,     # SPELL_EFFECT_PICKPOCKET
+        # 94,     # SPELL_EFFECT_SELF_RESURRECT
+        # 97,     # SPELL_EFFECT_SUMMON_ALL_TOTEMS
+        # 103,    # Grant reputation to faction
+        # 109,    # SPELL_EFFECT_SUMMON_DEAD_PET
+        # 110,    # SPELL_EFFECT_DESTROY_ALL_TOTEMS
+        # 118,    # SPELL_EFFECT_SKILL
+        # 126,    # SPELL_STEAL_BENEFICIAL_BUFF
+        # 131,    # Play sound
+        # 162,    # Select specialization
+        # 166,    # Grant currency
+        # 198,    # Play a scene
+        # 205,    # Quest choice stuff
+        # 219,    # Conversiation stuff
+        # 223,    # Various item bonus grants
+        # 225,    # Battle pet level grant
+        # 231,    # Follower experience grant
+        # 238,    # Increase skill
+        # 240,    # Artifact experience grant
+        # 242,    # Artifact experience grant
+        # 245,    # Upgrade heirloom
+        # 247,    # Add garrison mission
+        # 248,    # Rush orders for garrisons
+        # 249,    # Force equip an item
+        # 252,    # Some kind of teleport
+        # 255,    # Some kind of transmog thing
     ]
 
     # http://github.com/mangos/mangos/blob/400/src/game/SpellAuraDefines.h
     _aura_type_blacklist = [
-        1,      # SPELL_AURA_BIND_SIGHT
-        2,      # SPELL_AURA_MOD_POSSESS
-        5,      # SPELL_AURA_MOD_CONFUSE
-        6,      # SPELL_AURA_MOD_CHARM
-        7,      # SPELL_AURA_MOD_FEAR
-        #8,      # SPELL_AURA_PERIODIC_HEAL
-        17,     # SPELL_AURA_MOD_STEALTH_DETECT
-        25,     # SPELL_AURA_MOD_PACIFY
-        30,     # SPELL_AURA_MOD_SKILL (various skills?)
-        #31,     # SPELL_AURA_MOD_INCREASE_SPEED
-        44,     # SPELL_AURA_TRACK_CREATURES
-        45,     # SPELL_AURA_TRACK_RESOURCES
-        56,     # SPELL_AURA_TRANSFORM
-        58,     # SPELL_AURA_MOD_INCREASE_SWIM_SPEED
-        75,     # SPELL_AURA_MOD_LANGUAGE
-        78,     # SPELL_AURA_MOUNTED
-        82,     # SPELL_AURA_WATER_BREATHING
-        91,     # SPELL_AURA_MOD_DETECT_RANGE
-        98,     # SPELL_AURA_MOD_SKILL (trade skills?)
-        104,    # SPELL_AURA_WATER_WALK,
-        105,    # SPELL_AURA_FEATHER_FALL
-        151,    # SPELL_AURA_TRACK_STEALTHED
-        154,    # SPELL_AURA_MOD_STEALTH_LEVEL
-        156,    # SPELL_AURA_MOD_REPUTATION_GAIN
-        200,    # Exp gain from kills
-        206,    # SPELL_AURA_MOD_FLIGHT_SPEED_xx begin
-        207,
-        208,
-        209,
-        210,
-        211,
-        212,    # SPELL_AURA_MOD_FLIGHT_SPEED_xx ends
-        244,    # Language stuff
-        260,    # Screen effects
-        261,    # Phasing
-        291,    # Exp gain from quests
+        # 1,      # SPELL_AURA_BIND_SIGHT
+        # 2,      # SPELL_AURA_MOD_POSSESS
+        # 5,      # SPELL_AURA_MOD_CONFUSE
+        # 6,      # SPELL_AURA_MOD_CHARM
+        # 7,      # SPELL_AURA_MOD_FEAR
+        # #8,      # SPELL_AURA_PERIODIC_HEAL
+        # 17,     # SPELL_AURA_MOD_STEALTH_DETECT
+        # 25,     # SPELL_AURA_MOD_PACIFY
+        # 30,     # SPELL_AURA_MOD_SKILL (various skills?)
+        # #31,     # SPELL_AURA_MOD_INCREASE_SPEED
+        # 44,     # SPELL_AURA_TRACK_CREATURES
+        # 45,     # SPELL_AURA_TRACK_RESOURCES
+        # 56,     # SPELL_AURA_TRANSFORM
+        # 58,     # SPELL_AURA_MOD_INCREASE_SWIM_SPEED
+        # 75,     # SPELL_AURA_MOD_LANGUAGE
+        # 78,     # SPELL_AURA_MOUNTED
+        # 82,     # SPELL_AURA_WATER_BREATHING
+        # 91,     # SPELL_AURA_MOD_DETECT_RANGE
+        # 98,     # SPELL_AURA_MOD_SKILL (trade skills?)
+        # 104,    # SPELL_AURA_WATER_WALK,
+        # 105,    # SPELL_AURA_FEATHER_FALL
+        # 151,    # SPELL_AURA_TRACK_STEALTHED
+        # 154,    # SPELL_AURA_MOD_STEALTH_LEVEL
+        # 156,    # SPELL_AURA_MOD_REPUTATION_GAIN
+        # 200,    # Exp gain from kills
+        # 206,    # SPELL_AURA_MOD_FLIGHT_SPEED_xx begin
+        # 207,
+        # 208,
+        # 209,
+        # 210,
+        # 211,
+        # 212,    # SPELL_AURA_MOD_FLIGHT_SPEED_xx ends
+        # 244,    # Language stuff
+        # 260,    # Screen effects
+        # 261,    # Phasing
+        # 291,    # Exp gain from quests
         430,    # Play scene
     ]
 
@@ -4233,7 +4236,7 @@ class SoulbindAbilityGenerator(DataGenerator):
             fields = garr_talent.ref('id_spell').field('id')
             fields += soulbind.field('id_covenant')
             fields += garr_talent.ref('id_spell').field('name')
-            
+
             self.output_record(fields)
 
         self.output_footer()

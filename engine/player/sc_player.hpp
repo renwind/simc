@@ -512,6 +512,7 @@ struct player_t : public actor_t
     buff_t* razor_coral; // Ashvane's Razor Coral trinket crit rating buff
 
     // 9.0 Soulbinds
+    buff_t* invigorating_herbs;       // night_fae/niya/tools - proc on direct heal
     buff_t* redirected_anima_stacks;  // night_fae/niya/grove_invigoration - counter procced via rppm
     buff_t* redirected_anima;         // night_fae/niya/grove_invigoration - buff procced on covenant ability use
     buff_t* field_of_blossoms;        // night_fae/dreamweaver - buff procced on covenant ability use
@@ -526,9 +527,14 @@ struct player_t : public actor_t
     buff_t* combat_meditation;        // kyrian/pelagos - mast buff on covenant cast
     buff_t* pointed_courage;          // kyrian/kleia - crit buff for every nearby enemy or ally
     buff_t* hammer_of_genesis;        // kyrian/mikanikos - haste on hitting new enemy
-    buff_t* gnashing_chompers;        // necrolord/emeni - haste of enemy death
+    buff_t* brons_call_to_action;     // kyrian/mikanikos - bron's counter
+    buff_t* gnashing_chompers;        // necrolord/emeni - haste on enemy death
+    buff_t* embody_the_construct;     // necrolord/emeni - cast counter
     buff_t* marrowed_gemstone_charging;     // necrolord/heirmir - crit counter
     buff_t* marrowed_gemstone_enhancement;  // necrolord/heirmir - crit proc after 10 crits
+
+    // 9.0 Enchants and Consumables
+    buff_t* celestial_guidance;
   } buffs;
 
   struct debuffs_t

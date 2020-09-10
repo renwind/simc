@@ -529,8 +529,8 @@ public:
     double focus_magic_crit_chance = 0.5;
     timespan_t from_the_ashes_interval = 2.0_s;
     // TODO: Determine reasonable default values for Mirrors of Torment options.
-    timespan_t mirrors_of_torment_interval = 2.0_s;
-    double mirrors_of_torment_stddev = 0.1;
+    std::vector<timespan_t> mirrors_of_torment_interval = { 2.0_s };
+    std::vector<double> mirrors_of_torment_stddev = { 0.1 };
   } options;
 
   // Pets
@@ -1275,34 +1275,40 @@ struct mirrors_of_torment_t : public buff_t
     set_reverse( true );
 
     auto p = debug_cast<mage_t*>( source );
-    if ( p->options.mirrors_of_torment_interval > 0_ms )
-    {
-      set_tick_behavior( buff_tick_behavior::REFRESH );
-      set_tick_time_callback( [ this, p ] ( const buff_t*, unsigned current_tick )
-      {
-        if ( tick_index == current_tick && period > 0_ms )
-          return period;
+    if ( p->options.mirrors_of_torment_interval.empty() || p->options.mirrors_of_torment_stddev.empty() )
+      return;
 
-        tick_index = current_tick;
-        period = p->options.mirrors_of_torment_interval;
-        period = std::max( 1_ms, p->rng().gauss( period, period * p->options.mirrors_of_torment_stddev ) );
+    set_tick_behavior( buff_tick_behavior::REFRESH );
+    set_tick_time_callback( [ this, p ] ( const buff_t*, unsigned current_tick )
+    {
+      if ( tick_index == current_tick && period > 0_ms )
         return period;
-      } );
-      set_tick_callback( [ p ] ( buff_t* buff, int, timespan_t )
+
+      size_t interval_ix = std::min( as<size_t>( current_tick ), p->options.mirrors_of_torment_interval.size() - 1 );
+      size_t stddev_ix   = std::min( as<size_t>( current_tick ), p->options.mirrors_of_torment_stddev.size() - 1 );
+
+      tick_index = current_tick;
+      period = p->options.mirrors_of_torment_interval[ interval_ix ];
+      period = std::max( 1_ms, p->rng().gauss( period, period * p->options.mirrors_of_torment_stddev[ stddev_ix ] ) );
+
+      return period;
+    } );
+    set_tick_callback( [ p ] ( buff_t* buff, int, timespan_t )
+    {
+      if ( buff->current_tick % buff->max_stack() == 0 )
       {
-        if ( buff->current_tick % buff->max_stack() == 0 )
-        {
-          p->action.tormenting_backlash->set_target( buff->player );
-          p->action.tormenting_backlash->execute();
-        }
-        else
-        {
-          p->action.agonizing_backlash->set_target( buff->player );
-          p->action.agonizing_backlash->execute();
-        }
-        p->buffs.siphoned_malice->trigger();
-      } );
-    }
+        p->action.tormenting_backlash->set_target( buff->player );
+        p->action.tormenting_backlash->execute();
+      }
+      else
+      {
+        p->action.agonizing_backlash->set_target( buff->player );
+        p->action.agonizing_backlash->execute();
+      }
+      p->buffs.siphoned_malice->trigger();
+    } );
+    set_stack_change_callback( [ this ] ( buff_t*, int, int cur )
+    { if ( cur == 0 ) period = 0_ms; } );
   }
 
   void reset() override
@@ -3279,7 +3285,7 @@ struct dragons_breath_t : public fire_mage_spell_t
   {
     fire_mage_spell_t::execute();
 
-    if ( hit_any_target && p()->talents.alexstraszas_fury->ok() )
+    if ( hit_any_target )
       p()->buffs.alexstraszas_fury->trigger();
   }
 
@@ -3648,10 +3654,12 @@ struct flurry_t : public frost_mage_spell_t
     bool brain_freeze = p()->buffs.brain_freeze->up();
     p()->state.brain_freeze_active = brain_freeze;
     p()->buffs.brain_freeze->decrement();
-    p()->remaining_winters_chill = 2;
 
     if ( brain_freeze )
+    {
+      p()->remaining_winters_chill = 2;
       p()->procs.brain_freeze_used->occur();
+    }
 
     if ( p()->buffs.cold_front_ready->check() )
     {
@@ -3905,6 +3913,10 @@ struct frozen_orb_t : public frost_mage_spell_t
   {
     frost_mage_spell_t::execute();
 
+    if ( background )
+      return;
+
+    // TODO: Check how Cold Front and Freezing Winds interact
     p()->buffs.freezing_rain->trigger();
     p()->buffs.freezing_winds->trigger();
   }
@@ -4802,7 +4814,7 @@ struct pyroblast_t : public hot_streak_spell_t
   {
     double am = hot_streak_spell_t::action_multiplier();
 
-    if ( !last_hot_streak )
+    if ( time_to_execute > 0_ms )
       am *= 1.0 + p()->buffs.pyroclasm->check_value();
 
     return am;
@@ -4810,22 +4822,17 @@ struct pyroblast_t : public hot_streak_spell_t
 
   void execute() override
   {
-    // TODO: Verify that Sun King's Blessing activates when
+    // TODO: Check whether Sun King's Blessing activates when
     // an instant cast Pyroblast without Hot Streak is used
-    if ( !last_hot_streak && p()->buffs.sun_kings_blessing_ready->check() )
+    if ( time_to_execute > 0_ms && p()->buffs.sun_kings_blessing_ready->check() )
     {
-      timespan_t d = 1000 * p()->runeforge.sun_kings_blessing->effectN( 2 ).time_value();
-      if ( p()->buffs.combustion->check() )
-        p()->buffs.combustion->extend_duration( p(), d );
-      else
-        p()->buffs.combustion->trigger( d );
-
+      p()->buffs.combustion->extend_duration_or_trigger( 1000 * p()->runeforge.sun_kings_blessing->effectN( 2 ).time_value() );
       p()->buffs.sun_kings_blessing_ready->expire();
     }
 
     hot_streak_spell_t::execute();
 
-    if ( !last_hot_streak )
+    if ( time_to_execute > 0_ms )
       p()->buffs.pyroclasm->decrement();
 
     if ( pyroblast_dot )
@@ -5208,6 +5215,7 @@ struct agonizing_backlash_t : public mage_spell_t
     mage_spell_t( n, p, p->find_spell( 320035 ) )
   {
     background = true;
+    callbacks = false;
   }
 };
 
@@ -5217,6 +5225,7 @@ struct tormenting_backlash_t : public mage_spell_t
     mage_spell_t( n, p, p->find_spell( 317589 ) )
   {
     background = true;
+    callbacks = false;
   }
 };
 
@@ -5227,6 +5236,12 @@ struct mirrors_of_torment_t : public mage_spell_t
   {
     parse_options( options_str );
     affected_by.ice_floes = true;
+
+    if ( data().ok() )
+    {
+      add_child( p->action.agonizing_backlash );
+      add_child( p->action.tormenting_backlash );
+    }
   }
 
   void impact( action_state_t* s ) override
@@ -5283,6 +5298,7 @@ struct shifting_power_pulse_t : public mage_spell_t
     mage_spell_t( n, p, p->find_spell( 325130 ) )
   {
     background = true;
+    callbacks = false;
     aoe = -1;
   }
 
@@ -5678,7 +5694,7 @@ mage_td_t::mage_td_t( player_t* target, mage_t* mage ) :
   debuffs.mirrors_of_torment          = make_buff<buffs::mirrors_of_torment_t>( this );
   debuffs.radiant_spark_vulnerability = make_buff( *this, "radiant_spark_vulnerability", mage->find_spell( 307454 ) )
                                           ->set_default_value_from_effect( 1 )
-                                          ->apply_affecting_conduit( mage->conduits.ire_of_the_ascended );
+                                          ->modify_default_value( mage->conduits.ire_of_the_ascended.percent() );
 
   // Azerite
   debuffs.packed_ice = make_buff( *this, "packed_ice", mage->find_spell( 272970 ) )
@@ -5909,8 +5925,33 @@ void mage_t::create_options()
   add_option( opt_float( "focus_magic_stddev", options.focus_magic_stddev, 0.0, std::numeric_limits<double>::max() ) );
   add_option( opt_float( "focus_magic_crit_chance", options.focus_magic_crit_chance, 0.0, 1.0 ) );
   add_option( opt_timespan( "from_the_ashes_interval", options.from_the_ashes_interval, 1_ms, timespan_t::max() ) );
-  add_option( opt_timespan( "mirrors_of_torment_interval", options.mirrors_of_torment_interval, 0_ms, timespan_t::max() ) );
-  add_option( opt_float( "mirrors_of_torment_stddev", options.mirrors_of_torment_stddev, 0.0, std::numeric_limits<double>::max() ) );
+  add_option( opt_func( "mirrors_of_torment_interval", [ this ] ( sim_t*, util::string_view, util::string_view val )
+  {
+    options.mirrors_of_torment_interval.clear();
+    auto splits = util::string_split<util::string_view>( val, "/" );
+    for ( auto split : splits )
+    {
+      double d = util::to_double( split );
+      if ( d < 0.0 )
+        throw std::invalid_argument( "Mirrors of Torment interval can't be negative" );
+      options.mirrors_of_torment_interval.push_back( timespan_t::from_seconds( d ) );
+    }
+    return true;
+  } ) );
+  add_option( opt_func( "mirrors_of_torment_stddev", [ this ] ( sim_t*, util::string_view, util::string_view val )
+  {
+    options.mirrors_of_torment_stddev.clear();
+    auto splits = util::string_split<util::string_view>( val, "/" );
+    for ( auto split : splits )
+    {
+      double d = util::to_double( split );
+      if ( d < 0.0 )
+        throw std::invalid_argument( "Mirrors of Torment stddev can't be negative" );
+      options.mirrors_of_torment_stddev.push_back( d );
+    }
+    return true;
+  } ) );
+
   player_t::create_options();
 }
 
@@ -6032,6 +6073,8 @@ void mage_t::moving()
 
 void mage_t::create_pets()
 {
+  player_t::create_pets();
+
   if ( specialization() == MAGE_FROST && !talents.lonely_winter->ok() && find_action( "summon_water_elemental" ) )
     pets.water_elemental = new pets::water_elemental::water_elemental_pet_t( sim, this );
 
@@ -6270,7 +6313,7 @@ void mage_t::create_buffs()
   buffs.arcane_power         = make_buff( this, "arcane_power", find_spell( 12042 ) )
                                  ->set_cooldown( 0_ms )
                                  ->set_default_value_from_effect( 1 )
-                                 ->apply_affecting_aura( talents.overpowered )
+                                 ->modify_default_value( talents.overpowered->effectN( 1 ).percent() )
                                  ->modify_duration( spec.arcane_power_3->effectN( 1 ).time_value() );
   buffs.clearcasting         = make_buff<buffs::expanded_potential_buff_t>( this, "clearcasting", find_spell( 263725 ) )
                                  ->set_default_value_from_effect( 1 )

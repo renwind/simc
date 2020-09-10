@@ -1,5 +1,5 @@
-﻿// Item name descriptions, wow build 9.0.1.35755
-static const std::array<item_name_description_t, 543> __item_name_description_data { {
+﻿// Item name descriptions, wow build 9.0.1.35854
+static const std::array<item_name_description_t, 544> __item_name_description_data { {
   {     2, "现在有了额外的描述文字"                                 },
   {    20, "第10赛季"                                       },
   {   226, "第10赛季精锐"                                     },
@@ -531,17 +531,18 @@ static const std::array<item_name_description_t, 543> __item_name_description_da
   { 13772, "阿兹亚基的疯狂"                                     },
   { 13773, "天魔法衣余烬"                                      },
   { 13774, "伊米亚的裹足"                                      },
-  { 13775, "Collective Anguish"                          },
-  { 13776, "Half-Giant Empowerment"                      },
-  { 13777, "Darkglare Boon"                              },
-  { 13778, "Darkest Hour"                                },
-  { 13779, "Inner Demons"                                },
-  { 13780, "Chaos Theory"                                },
-  { 13781, "Erratic Fel Core"                            },
-  { 13782, "Fel Bombardment"                             },
-  { 13783, "Spirit of the Darkness Flame"                },
-  { 13784, "Razelikh's Defilement"                       },
-  { 13785, "Fel Flame Fortification"                     },
-  { 13786, "Fiery Soul"                                  },
+  { 13775, "集体痛楚"                                        },
+  { 13776, "半巨人强化"                                       },
+  { 13777, "黑眼之赐"                                        },
+  { 13778, "至暗时刻"                                        },
+  { 13779, "内心之魔"                                        },
+  { 13780, "混沌理论"                                        },
+  { 13781, "古怪的邪能核心"                                     },
+  { 13782, "邪能轰炸"                                        },
+  { 13783, "黑炎之魂"                                        },
+  { 13784, "拉瑟莱克的污秽"                                     },
+  { 13785, "强固邪焰"                                        },
+  { 13786, "炽热灵魂"                                        },
+  { 13787, "Winterborn"                                  },
 } };
 

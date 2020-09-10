@@ -694,7 +694,7 @@ public:
   virtual double crit_block_chance( action_state_t* /* state */  ) const
   { return 0; }
 
-  virtual double total_crit_bonus( action_state_t* /* state */ ) const; // Check if we want to move this into the stateless system.
+  virtual double total_crit_bonus( const action_state_t* /* state */ ) const; // Check if we want to move this into the stateless system.
 
   virtual int num_targets() const;
 
@@ -785,14 +785,17 @@ public:
 
   virtual double composite_target_crit_chance( player_t* target ) const;
 
-  virtual double composite_target_multiplier(player_t* target) const;
+  virtual double composite_target_crit_damage_bonus_multiplier( player_t* ) const
+  { return 1.0; }
 
-  virtual double composite_target_damage_vulnerability(player_t* target) const;
+  virtual double composite_target_multiplier( player_t* target ) const;
+
+  virtual double composite_target_damage_vulnerability( player_t* target ) const;
 
   virtual double composite_versatility( const action_state_t* ) const
   { return 1.0; }
 
-  virtual double composite_leech(const action_state_t*) const;
+  virtual double composite_leech( const action_state_t* ) const;
 
   virtual double composite_run_speed() const;
 

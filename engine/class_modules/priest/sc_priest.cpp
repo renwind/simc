@@ -3,12 +3,12 @@
 // Send questions to natehieter@gmail.com
 // ==========================================================================
 
-#include "simulationcraft.hpp"
-
 #include "sc_priest.hpp"
 
 #include "sc_enums.hpp"
 #include "tcb/span.hpp"
+
+#include "simulationcraft.hpp"
 
 namespace priestspace
 {
@@ -411,6 +411,10 @@ struct unholy_nova_t final : public priest_spell_t
     parse_options( options_str );
     aoe           = -1;
     impact_action = new unholy_transfusion_t( p, options_str );
+
+    // Radius for damage spell is stored in the DoT's spell radius
+    radius = p.find_spell( 325203 )->effectN( 1 ).radius_max();
+
     add_child( impact_action );
     // Unholy Nova itself does NOT do damage, just the DoT
     base_dd_min = base_dd_max = spell_power_mod.direct = 0;
@@ -490,7 +494,8 @@ struct ascended_nova_t final : public priest_spell_t
       grants_stacks( as<int>( data().effectN( 3 ).base_value() ) )
   {
     parse_options( options_str );
-    aoe = -1;
+    aoe    = -1;
+    radius = data().effectN( 1 ).radius_max();
   }
 
   void impact( action_state_t* s ) override
@@ -566,6 +571,7 @@ struct ascended_eruption_t final : public priest_spell_t
   {
     aoe        = -1;
     background = true;
+    radius     = data().effectN( 1 ).radius_max();
   }
 
   void trigger_eruption( int stacks )
@@ -1780,7 +1786,7 @@ void priest_t::create_apl_precombat()
 // TODO: Adjust these with new consumables in Shadowlands
 std::string priest_t::default_potion() const
 {
-  std::string lvl60_potion = ( specialization() == PRIEST_SHADOW ) ? "unbridled_fury" : "battle_potion_of_intellect";
+  std::string lvl60_potion = ( specialization() == PRIEST_SHADOW ) ? "potion_of_spectral_intellect" : "potion_of_spectral_intellect";
   std::string lvl50_potion = ( specialization() == PRIEST_SHADOW ) ? "unbridled_fury" : "battle_potion_of_intellect";
 
   return ( true_level > 50 ) ? lvl60_potion : lvl50_potion;
@@ -1788,12 +1794,12 @@ std::string priest_t::default_potion() const
 
 std::string priest_t::default_flask() const
 {
-  return ( true_level > 50 ) ? "greater_flask_of_endless_fathoms" : "greater_flask_of_endless_fathoms";
+  return ( true_level > 50 ) ? "spectral_flask_of_power" : "greater_flask_of_endless_fathoms";
 }
 
 std::string priest_t::default_food() const
 {
-  return ( true_level > 50 ) ? "baked_port_tato" : "baked_port_tato";
+  return ( true_level > 50 ) ? "crawler_ravioli_with_apple_sauce" : "baked_port_tato";
 }
 
 std::string priest_t::default_rune() const

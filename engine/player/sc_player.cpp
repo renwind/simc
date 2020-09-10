@@ -1333,8 +1333,8 @@ player_t::base_initial_current_t::base_initial_current_t() :
   spell_crit_per_intellect( 0 ),
   attack_power_per_strength( 0 ),
   attack_power_per_agility( 0 ),
-  attack_power_per_spell_power( 0 ),
   attack_crit_per_agility( 0 ),
+  attack_power_per_spell_power( 0 ),
   dodge_per_agility( 0 ),
   parry_per_strength( 0 ),
   health_per_stamina( 0 ),
@@ -3330,6 +3330,8 @@ void player_t::create_buffs()
             b->expire();
           }
         } );
+      buffs.brons_call_to_action = make_buff( this, "brons_call_to_action", find_spell( 332514 ) );
+      buffs.embody_the_construct = make_buff( this, "embody_the_construct", find_spell( 342174 ) );
       buffs.marrowed_gemstone_charging = make_buff( this, "marrowed_gemstone_charging", find_spell( 327066 ) )
         ->modify_max_stack( 1 )
         ->set_stack_change_callback( [this]( buff_t* b, int, int new_ ) {
@@ -3476,6 +3478,9 @@ double player_t::composite_melee_haste() const
 
     if ( buffs.guardian_of_azeroth->check() )
       h *= 1.0 / ( 1.0 + buffs.guardian_of_azeroth->check_stack_value() );
+
+    if ( buffs.invigorating_herbs )
+      h *= 1.0 / ( 1.0 + buffs.invigorating_herbs->check_value() );
 
     if ( buffs.field_of_blossoms )
       h *= 1.0 / ( 1.0 + buffs.field_of_blossoms->check_value() );
@@ -3832,6 +3837,9 @@ double player_t::composite_spell_haste() const
     if ( buffs.guardian_of_azeroth->check() )
       h *= 1.0 / ( 1.0 + buffs.guardian_of_azeroth->check_stack_value() );
 
+    if ( buffs.invigorating_herbs )
+      h *= 1.0 / ( 1.0 + buffs.invigorating_herbs->check_value() );
+
     if ( buffs.field_of_blossoms )
       h *= 1.0 / ( 1.0 + buffs.field_of_blossoms->check_value() );
 
@@ -4161,6 +4169,7 @@ double player_t::composite_player_target_multiplier( player_t* target, school_e 
     m *= 1.0 + td->debuff.condensed_lifeforce->check_value();
     m *= 1.0 + td->debuff.adversary->check_value();
     m *= 1.0 + td->debuff.plagueys_preemptive_strike->check_value();
+    m *= 1.0 + td->debuff.sinful_revelation->check_value();
   }
 
   return m;
@@ -4336,6 +4345,9 @@ double player_t::composite_attribute_multiplier( attribute_e attr ) const
 
   if ( buffs.built_for_war )
     m *= 1.0 + buffs.built_for_war->check_stack_value();
+
+  if ( buffs.celestial_guidance )
+    m *= 1.0 + buffs.celestial_guidance->check_value();
 
   switch ( attr )
   {
@@ -8859,8 +8871,13 @@ action_t* player_t::create_action( util::string_view name, const std::string& op
     return new variable_t( this, options_str );
   if ( name == "cycling_variable" )
     return new cycling_variable_t( this, options_str );
+  if ( name == "wait_for_cooldown")
+    return new wait_for_cooldown_t( this, options_str );
 
   if ( auto action = azerite::create_action( this, name, options_str ) )
+    return action;
+
+  if ( auto action = covenant::create_action( this, name, options_str ) )
     return action;
 
   return consumable::create_action( this, name, options_str );

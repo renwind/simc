@@ -564,7 +564,7 @@ enum property_type_t {
   P_RANGE             = 5,
   P_RADIUS            = 6,
   P_CRIT              = 7,
-  P_UNKNOWN_1         = 8, // Unknown
+  P_EFFECTS           = 8,
   P_PUSHBACK          = 9,
   P_CAST_TIME         = 10,
   P_COOLDOWN          = 11,
@@ -574,12 +574,12 @@ enum property_type_t {
   P_CRIT_DAMAGE       = 15,
   P_PENETRATION       = 16,
   P_TARGET            = 17,
-  P_PROC_CHANCE       = 18, // Unconfirmed
-  P_TICK_TIME         = 19, // Unknown
+  P_PROC_CHANCE       = 18,
+  P_TICK_TIME         = 19,
   P_TARGET_BONUS      = 20, // Improved Revenge
   P_GCD               = 21, // Only used for flat modifiers?
   P_TICK_DAMAGE       = 22,
-  P_EFFECT_3          = 23, // Glyph of Killing Spree, Glyph of Revealing Strike (both +% damage increases)
+  P_EFFECT_3          = 23,
   P_SPELL_POWER       = 24,
   P_UNUSED_2          = 25,
   P_PROC_FREQUENCY    = 26,
@@ -1153,7 +1153,7 @@ enum effect_subtype_t : unsigned {
     A_MOD_RANGED_AND_MELEE_ATTACK_SPEED = 342,
     A_MOD_AUTO_ATTACK_FROM_CASTER = 343,
     A_MOD_AUTO_ATTACK_PCT = 344,
-    A_345 = 345,
+    A_MOD_IGNORE_ARMOR_PCT = 345,
     A_346 = 346,
     A_347 = 347,
     A_348 = 348,

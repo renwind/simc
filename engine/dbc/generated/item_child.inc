@@ -1,4 +1,4 @@
-﻿// Item child equipment, wow build 9.0.1.35755
+﻿// Item child equipment, wow build 9.0.1.35854
 static const std::array<item_child_equipment_t, 21> __item_child_equipment_data { {
   {  2, 127417,   1728 }, // parent=0, child=提布的炽炎长剑
   {  3, 127829, 127830 }, // parent=欺诈者的双刃, child=欺诈者的双刃
